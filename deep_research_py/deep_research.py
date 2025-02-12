@@ -1,46 +1,33 @@
 from typing import List, Dict, TypedDict, Optional
 from dataclasses import dataclass
 import asyncio
-import os
-from firecrawl import FirecrawlApp
-from .ai.providers import openai_client, trim_prompt
+from .ai.providers import trim_prompt
 from .prompt import system_prompt
 import json
-
+from .ai.api_client import ApiClient
 
 class SearchResponse(TypedDict):
     data: List[Dict[str, str]]
 
-
 class ResearchResult(TypedDict):
     learnings: List[str]
     visited_urls: List[str]
-
 
 @dataclass
 class SerpQuery:
     query: str
     research_goal: str
 
-
 class Firecrawl:
     """Simple wrapper for Firecrawl SDK."""
 
-    def __init__(self, api_key: str = "", api_url: Optional[str] = None):
-        self.app = FirecrawlApp(api_key=api_key, api_url=api_url)
+    def __init__(self):
+        self.api_client = ApiClient()
 
-    async def search(
-        self, query: str, timeout: int = 15000, limit: int = 5
-    ) -> SearchResponse:
+    async def search(self, query: str) -> SearchResponse:
         """Search using Firecrawl SDK in a thread pool to keep it async."""
         try:
-            # Run the synchronous SDK call in a thread pool
-            response = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self.app.search(
-                    query=query,
-                ),
-            )
+            response = await self.api_client.firecrawl_search(query=query, timeout=15000, limit=5)
 
             # Handle the response format from the SDK
             if isinstance(response, dict) and "data" in response:
@@ -73,22 +60,10 @@ class Firecrawl:
 
         except Exception as e:
             print(f"Error searching with Firecrawl: {e}")
-            print(
-                f"Response type: {type(response) if 'response' in locals() else 'N/A'}"
-            )
+            print(f"Response type: {type(response) if 'response' in locals() else 'N/A'}")
             return {"data": []}
 
-
-# Initialize Firecrawl
-firecrawl = Firecrawl(
-    api_key=os.environ.get("FIRECRAWL_KEY", ""),
-    api_url=os.environ.get("FIRECRAWL_BASE_URL"),
-)
-
-
-async def generate_serp_queries(
-    query: str, num_queries: int = 3, learnings: Optional[List[str]] = None
-) -> List[SerpQuery]:
+async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Optional[List[str]] = None) -> List[SerpQuery]:
     """Generate SERP queries based on user input and previous learnings."""
 
     prompt = f"""Given the following prompt from the user, generate a list of SERP queries to research the topic. Return a JSON object with a 'queries' array field containing {num_queries} queries (or less if the original prompt is clear). Each query object should have 'query' and 'research_goal' fields. Make sure each query is unique and not similar to each other: <prompt>{query}</prompt>"""
@@ -96,17 +71,12 @@ async def generate_serp_queries(
     if learnings:
         prompt += f"\n\nHere are some learnings from previous research, use them to generate more specific queries: {' '.join(learnings)}"
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: openai_client.chat.completions.create(
-            model="o3-mini",
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
-    )
+    messages = [
+        {"role": "system", "content": system_prompt()},
+        {"role": "user", "content": prompt},
+    ]
+    api_client = ApiClient()
+    response = await api_client.llm_complete(messages=messages, model="o3-mini", response_format={"type": "json_object"})
 
     try:
         result = json.loads(response.choices[0].message.content)
@@ -118,12 +88,7 @@ async def generate_serp_queries(
         return []
 
 
-async def process_serp_result(
-    query: str,
-    search_result: SearchResponse,
-    num_learnings: int = 3,
-    num_follow_up_questions: int = 3,
-) -> Dict[str, List[str]]:
+async def process_serp_result(query: str, search_result: SearchResponse, num_learnings: int = 3, num_follow_up_questions: int = 3) -> Dict[str, List[str]]:
     """Process search results to extract learnings and follow-up questions."""
 
     contents = [
@@ -144,25 +109,18 @@ async def process_serp_result(
         f"<contents>{contents_str}</contents>"
     )
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: openai_client.chat.completions.create(
-            model="o3-mini",
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
-    )
+    messages = [
+        {"role": "system", "content": system_prompt()},
+        {"role": "user", "content": prompt},
+    ]
+    api_client = ApiClient()
+    response = await api_client.llm_complete(messages=messages, model="o3-mini", response_format={"type": "json_object"})
 
     try:
         result = json.loads(response.choices[0].message.content)
         return {
             "learnings": result.get("learnings", [])[:num_learnings],
-            "followUpQuestions": result.get("followUpQuestions", [])[
-                :num_follow_up_questions
-            ],
+            "followUpQuestions": result.get("followUpQuestions", [])[ : num_follow_up_questions],
         }
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
@@ -170,9 +128,7 @@ async def process_serp_result(
         return {"learnings": [], "followUpQuestions": []}
 
 
-async def write_final_report(
-    prompt: str, learnings: List[str], visited_urls: List[str]
-) -> str:
+async def write_final_report(prompt: str, learnings: List[str], visited_urls: List[str]) -> str:
     """Generate final report based on all research learnings."""
 
     learnings_string = trim_prompt(
@@ -188,17 +144,12 @@ async def write_final_report(
         f"Here are all the learnings from research:\n\n<learnings>\n{learnings_string}\n</learnings>"
     )
 
-    response = await asyncio.get_event_loop().run_in_executor(
-        None,
-        lambda: openai_client.chat.completions.create(
-            model="o3-mini",
-            messages=[
-                {"role": "system", "content": system_prompt()},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-        ),
-    )
+    messages = [
+        {"role": "system", "content": system_prompt()},
+        {"role": "user", "content": user_prompt},
+    ]
+    api_client = ApiClient()
+    response = await api_client.llm_complete(messages=messages, model="o3-mini", response_format={"type": "json_object"})
 
     try:
         result = json.loads(response.choices[0].message.content)
@@ -215,13 +166,7 @@ async def write_final_report(
         return "Error generating report"
 
 
-async def deep_research(
-    query: str,
-    breadth: int,
-    depth: int,
-    concurrency: int,
-    learnings: List[str] = None,
-    visited_urls: List[str] = None,
+async def deep_research(query: str, breadth: int, depth: int, concurrency: int, learnings: List[str] = None, visited_urls: List[str] = None,
 ) -> ResearchResult:
     """
     Main research function that recursively explores a topic.
@@ -237,9 +182,7 @@ async def deep_research(
     visited_urls = visited_urls or []
 
     # Generate search queries
-    serp_queries = await generate_serp_queries(
-        query=query, num_queries=breadth, learnings=learnings
-    )
+    serp_queries = await generate_serp_queries(query=query, num_queries=breadth, learnings=learnings)
 
     # Create a semaphore to limit concurrent requests
     semaphore = asyncio.Semaphore(concurrency)
@@ -247,15 +190,10 @@ async def deep_research(
     async def process_query(serp_query: SerpQuery) -> ResearchResult:
         async with semaphore:
             try:
-                # Search for content
-                result = await firecrawl.search(
-                    serp_query.query, timeout=15000, limit=5
-                )
-
+                api_client = ApiClient()
+                result = await api_client.firecrawl_search(serp_query.query, timeout=15000, limit=5)
                 # Collect new URLs
-                new_urls = [
-                    item.get("url") for item in result["data"] if item.get("url")
-                ]
+                new_urls = [item.get("url") for item in result["data"] if item.get("url")]
 
                 # Calculate new breadth and depth for next iteration
                 new_breadth = max(1, breadth // 2)
@@ -273,9 +211,7 @@ async def deep_research(
 
                 # If we have more depth to go, continue research
                 if new_depth > 0:
-                    print(
-                        f"Researching deeper, breadth: {new_breadth}, depth: {new_depth}"
-                    )
+                    print(f"Researching deeper, breadth: {new_breadth}, depth: {new_depth}")
 
                     next_query = f"""
                     Previous research goal: {serp_query.research_goal}
@@ -304,9 +240,7 @@ async def deep_research(
     results = await asyncio.gather(*[process_query(query) for query in serp_queries])
 
     # Combine all results
-    all_learnings = list(
-        set(learning for result in results for learning in result["learnings"])
-    )
+    all_learnings = list(set(learning for result in results for learning in result["learnings"]))
 
     all_urls = list(set(url for result in results for url in result["visited_urls"]))
 
