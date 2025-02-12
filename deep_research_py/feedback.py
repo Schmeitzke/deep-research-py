@@ -14,7 +14,7 @@ async def generate_feedback(query: str) -> List[str]:
         },
     ]
     
-    response = await api_client.llm_complete(  # changed code
+    response = await api_client.llm_complete(
         messages=messages,
         model="o3-mini",
         response_format={"type": "json_object"}
@@ -22,10 +22,10 @@ async def generate_feedback(query: str) -> List[str]:
 
     # Parse the JSON response
     try:
-        result = json.loads(response.choices[0].message.content)
+        result = json.loads(response)
         return result.get("questions", [])
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return []
 

@@ -19,8 +19,6 @@ class SerpQuery:
     research_goal: str
 
 class Firecrawl:
-    """Simple wrapper for Firecrawl SDK."""
-
     def __init__(self):
         self.api_client = ApiClient()
 
@@ -64,9 +62,9 @@ class Firecrawl:
             return {"data": []}
 
 async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Optional[List[str]] = None) -> List[SerpQuery]:
-    """Generate SERP queries based on user input and previous learnings."""
-
-    prompt = f"""Given the following prompt from the user, generate a list of SERP queries to research the topic. Return a JSON object with a 'queries' array field containing {num_queries} queries (or less if the original prompt is clear). Each query object should have 'query' and 'research_goal' fields. Make sure each query is unique and not similar to each other: <prompt>{query}</prompt>"""
+    prompt = f"""Given the following prompt from the user, generate a list of SERP queries to research the topic. 
+        Return a JSON object with a 'queries' array field containing {num_queries} queries (or less if the original prompt is clear). 
+        Each query object should have 'query' and 'research_goal' fields. Make sure each query is unique and not similar to each other: <prompt>{query}</prompt>"""
 
     if learnings:
         prompt += f"\n\nHere are some learnings from previous research, use them to generate more specific queries: {' '.join(learnings)}"
@@ -76,26 +74,20 @@ async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Opt
         {"role": "user", "content": prompt},
     ]
     api_client = ApiClient()
-    response = await api_client.llm_complete(messages=messages, model="o3-mini", response_format={"type": "json_object"})
+    response = await api_client.llm_complete(messages=messages, response_format={"type": "json_object"})
 
     try:
-        result = json.loads(response.choices[0].message.content)
+        result = json.loads(response)
         queries = result.get("queries", [])
         return [SerpQuery(**q) for q in queries][:num_queries]
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return []
 
 
 async def process_serp_result(query: str, search_result: SearchResponse, num_learnings: int = 3, num_follow_up_questions: int = 3) -> Dict[str, List[str]]:
-    """Process search results to extract learnings and follow-up questions."""
-
-    contents = [
-        trim_prompt(item.get("markdown", ""), 25_000)
-        for item in search_result["data"]
-        if item.get("markdown")
-    ]
+    contents = [trim_prompt(item.get("markdown", ""), 25_000) for item in search_result["data"] if item.get("markdown")]
 
     # Create the contents string separately
     contents_str = "".join(f"<content>\n{content}\n</content>" for content in contents)
@@ -114,27 +106,22 @@ async def process_serp_result(query: str, search_result: SearchResponse, num_lea
         {"role": "user", "content": prompt},
     ]
     api_client = ApiClient()
-    response = await api_client.llm_complete(messages=messages, model="o3-mini", response_format={"type": "json_object"})
+    response = await api_client.llm_complete(messages=messages, response_format={"type": "json_object"})
 
     try:
-        result = json.loads(response.choices[0].message.content)
+        result = json.loads(response)
         return {
             "learnings": result.get("learnings", [])[:num_learnings],
             "followUpQuestions": result.get("followUpQuestions", [])[ : num_follow_up_questions],
         }
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return {"learnings": [], "followUpQuestions": []}
 
 
 async def write_final_report(prompt: str, learnings: List[str], visited_urls: List[str]) -> str:
-    """Generate final report based on all research learnings."""
-
-    learnings_string = trim_prompt(
-        "\n".join([f"<learning>\n{learning}\n</learning>" for learning in learnings]),
-        150_000,
-    )
+    learnings_string = trim_prompt("\n".join([f"<learning>\n{learning}\n</learning>" for learning in learnings]), 150_000)
 
     user_prompt = (
         f"Given the following prompt from the user, write a final report on the topic using "
@@ -149,35 +136,22 @@ async def write_final_report(prompt: str, learnings: List[str], visited_urls: Li
         {"role": "user", "content": user_prompt},
     ]
     api_client = ApiClient()
-    response = await api_client.llm_complete(messages=messages, model="o3-mini", response_format={"type": "json_object"})
+    response = await api_client.llm_complete(messages=messages, response_format={"type": "json_object"})
 
     try:
-        result = json.loads(response.choices[0].message.content)
+        result = json.loads(response)
         report = result.get("reportMarkdown", "")
 
         # Append sources
-        urls_section = "\n\n## Sources\n\n" + "\n".join(
-            [f"- {url}" for url in visited_urls]
-        )
+        urls_section = "\n\n## Sources\n\n" + "\n".join([f"- {url}" for url in visited_urls])
         return report + urls_section
     except json.JSONDecodeError as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response.choices[0].message.content}")
+        print(f"Raw response: {response}")
         return "Error generating report"
 
 
-async def deep_research(query: str, breadth: int, depth: int, concurrency: int, learnings: List[str] = None, visited_urls: List[str] = None,
-) -> ResearchResult:
-    """
-    Main research function that recursively explores a topic.
-
-    Args:
-        query: Research query/topic
-        breadth: Number of parallel searches to perform
-        depth: How many levels deep to research
-        learnings: Previous learnings to build upon
-        visited_urls: Previously visited URLs
-    """
+async def deep_research(query: str, breadth: int, depth: int, concurrency: int, learnings: List[str] = None, visited_urls: List[str] = None,) -> ResearchResult:
     learnings = learnings or []
     visited_urls = visited_urls or []
 
@@ -200,11 +174,7 @@ async def deep_research(query: str, breadth: int, depth: int, concurrency: int, 
                 new_depth = depth - 1
 
                 # Process the search results
-                new_learnings = await process_serp_result(
-                    query=serp_query.query,
-                    search_result=result,
-                    num_follow_up_questions=new_breadth,
-                )
+                new_learnings = await process_serp_result(query=serp_query.query, search_result=result, num_follow_up_questions=new_breadth)
 
                 all_learnings = learnings + new_learnings["learnings"]
                 all_urls = visited_urls + new_urls
