@@ -11,7 +11,13 @@ def api_keys(c):
     return c
 
 def llm(c):
+    # Set the API provider
     c.llm_provider = "gemini"
+
+    # Set the API models
+    c.gemini_model = "models/gemini-2.0-flash"
+    c.openai_model = "o3-mini"
+    c.xai_model = "grok-2-1212"
     return c
 
 def make_c():
