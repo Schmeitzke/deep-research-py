@@ -5,7 +5,7 @@ import google.generativeai as genai_old
 from google.genai import types
 from firecrawl import FirecrawlApp
 import tiktoken
-from config import create_c
+from deep_research.config_project import create_c
 c = create_c()
 
 class ApiClient:
