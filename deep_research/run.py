@@ -1,13 +1,13 @@
 import sys
-from deep_research_py.logger import Tee
+from deep_research.logger import Tee
 
 import asyncio
 import typer
 from functools import wraps
 from prompt_toolkit import PromptSession
 
-from deep_research_py.deep_research import deep_research, write_final_report
-from deep_research_py.feedback import generate_feedback
+from deep_research.deep_research import deep_research, write_final_report
+from deep_research.feedback import generate_feedback
 
 # Redirect all prints to terminal and log file.
 log_file = open("execution_log.txt", "w")
