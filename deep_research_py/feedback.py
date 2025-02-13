@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from .prompt import system_prompt
-from .ai.api_client import ApiClient
+from .api_client import ApiClient
 
 class FollowUpResponse(BaseModel):
     questions: list[str]

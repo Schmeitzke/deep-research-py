@@ -41,11 +41,11 @@ async def main(
     query = await async_prompt("\nWhat would you like to research? ")
     print()
 
-    breadth_prompt = "Research breadth (recommended 2-10) [4]: "
+    breadth_prompt = "Research breadth (recommended 2-10) [default: 4]: "
     breadth = int((await async_prompt(breadth_prompt)) or "4")
     print()
 
-    depth_prompt = "Research depth (recommended 1-5) [2]: "
+    depth_prompt = "Research depth (recommended 1-5) [default: 2]: "
     depth = int((await async_prompt(depth_prompt)) or "2")
     print()
 
@@ -78,11 +78,6 @@ async def main(
         concurrency=concurrency,
     )
 
-    # Show learnings
-    print("\nLearnings:")
-    for learning in research_results["learnings"]:
-        print(f"- {learning}")
-
     # Generate report
     print("\nWriting final report...")
     report = await write_final_report(
@@ -91,15 +86,7 @@ async def main(
         visited_urls=research_results["visited_urls"],
     )
 
-    # Show results
     print("\nResearch Complete!")
-    print("\nFinal Report:")
-    print(report)
-
-    # Show sources
-    print("\nSources:")
-    for url in research_results["visited_urls"]:
-        print(f"- {url}")
 
     # Save report
     with open("output.md", "w") as f:

@@ -2,7 +2,7 @@ from typing import List, Dict, TypedDict, Optional
 from dataclasses import dataclass
 import asyncio
 from .prompt import system_prompt
-from .ai.api_client import ApiClient
+from .api_client import ApiClient
 from pydantic import BaseModel
 
 class SearchResponse(TypedDict):
@@ -97,20 +97,16 @@ async def process_serp_result(query: str, search_result: SearchResponse, num_lea
 
     # Initialize an empty list to store the processed content
     contents = []
-    print("Search result: ", search_result["data"], "\n")
     # Iterate through each item in the search results
     for item in search_result["data"]:
-        print(f"Processing search result: {item} \n")
         # Get the markdown content if it exists
         markdown = item.get("markdown", "")
-        print(f"Markdown content: {markdown} \n")
         # If markdown exists, trim it and add to contents
         if markdown:
             contents.append(markdown)
 
     # Create the contents string separately
     contents_str = "".join(f"<content>\n{content}\n</content>" for content in contents)
-    print(f"Contents string: {contents_str} \n")
 
     prompt_str = (
         f"Given the following contents for the query <query>{query}</query>, generate learnings and follow-up questions. "
