@@ -1,3 +1,6 @@
+import sys
+from deep_research_py.logger import Tee
+
 import asyncio
 import typer
 from functools import wraps
@@ -5,6 +8,10 @@ from prompt_toolkit import PromptSession
 
 from deep_research_py.deep_research import deep_research, write_final_report
 from deep_research_py.feedback import generate_feedback
+
+# Redirect all prints to terminal and log file.
+log_file = open("execution_log.txt", "w")
+sys.stdout = Tee(sys.stdout, log_file)
 
 app = typer.Typer()
 session = PromptSession()

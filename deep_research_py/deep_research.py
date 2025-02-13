@@ -1,7 +1,6 @@
 from typing import List, Dict, TypedDict, Optional
 from dataclasses import dataclass
 import asyncio
-from .ai.providers import trim_prompt
 from .prompt import system_prompt
 from .ai.api_client import ApiClient
 from pydantic import BaseModel
@@ -73,7 +72,7 @@ class Firecrawl:
             return {"data": []}
 
 async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Optional[List[str]] = None) -> List[SerpQuery]:
-    prompt_str = ("Given the following prompt, generate a list of SERP queries to research the topic. "
+    prompt_str = (f"Given the following prompt: '{query}', generate a list of SERP queries to research the topic. "
                   f"Return a JSON object with a 'queries' array field containing up to {num_queries} unique queries. "
                   "Each query object should have 'query' and 'research_goal' fields.")
     if learnings:
@@ -95,10 +94,23 @@ async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Opt
         return []
 
 async def process_serp_result(query: str, search_result: SearchResponse, num_learnings: int = 3, num_follow_up_questions: int = 3) -> Dict[str, List[str]]:
-    contents = [trim_prompt(item.get("markdown", ""), 25_000) for item in search_result["data"] if item.get("markdown")]
+
+    # Initialize an empty list to store the processed content
+    contents = []
+    print("Search result: ", search_result["data"], "\n")
+    # Iterate through each item in the search results
+    for item in search_result["data"]:
+        print(f"Processing search result: {item} \n")
+        # Get the markdown content if it exists
+        markdown = item.get("markdown", "")
+        print(f"Markdown content: {markdown} \n")
+        # If markdown exists, trim it and add to contents
+        if markdown:
+            contents.append(markdown)
 
     # Create the contents string separately
     contents_str = "".join(f"<content>\n{content}\n</content>" for content in contents)
+    print(f"Contents string: {contents_str} \n")
 
     prompt_str = (
         f"Given the following contents for the query <query>{query}</query>, generate learnings and follow-up questions. "
@@ -127,8 +139,15 @@ async def process_serp_result(query: str, search_result: SearchResponse, num_lea
         return {"learnings": [], "followUpQuestions": []}
 
 async def write_final_report(prompt: str, learnings: List[str], visited_urls: List[str]) -> str:
-    learnings_string = trim_prompt("\n".join([f"<learning>\n{learning}\n</learning>" for learning in learnings]), 150_000)
-
+    # Build a string of learnings by putting each in XML tags
+    learnings_array = []
+    for learning in learnings:
+        learning_with_tags = "<learning>\n" + learning + "\n</learning>"
+        learnings_array.append(learning_with_tags)
+    
+    # Join all learnings with newlines
+    learnings_string = "\n".join(learnings_array)
+    
     user_prompt = (
         f"Given the following prompt from the user, write a final report on the topic using "
         f"the learnings from research. Return a JSON object with a 'reportMarkdown' field "

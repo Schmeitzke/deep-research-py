@@ -55,16 +55,17 @@ class ApiClient:
             return completion.choices[0].message
         else:
             raise ValueError(f"Unknown API provider: {self.api_provider}")
-        
-    async def firecrawl_visit_url(self, messages, response_format={"type": "json_object"}):
-        loop = asyncio.get_event_loop()
-        self.firecrawl_client = FirecrawlApp(api_key=c.FIRECRAWL_API_KEY)
-        return None
-    
+ 
     async def firecrawl_search(self, query, timeout=None, limit=None):
         loop = asyncio.get_event_loop()
         self.firecrawl_client = FirecrawlApp(api_key=c.FIRECRAWL_API_KEY)
-        params = {"timeout": timeout, "limit": limit}  # Build parameters dict
+        params = {
+            "timeout": timeout, 
+            "limit": limit,
+            "scrapeOptions": {
+            "formats": ["markdown"]
+            }
+        }
         search_result = await loop.run_in_executor(
             None,
             lambda: self.firecrawl_client.search(query=query, params=params)
