@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import asyncio
 from .ai.providers import trim_prompt
 from .prompt import system_prompt
-import json
 from .ai.api_client import ApiClient
+from pydantic import BaseModel
 
 class SearchResponse(TypedDict):
     data: List[Dict[str, str]]
@@ -17,6 +17,17 @@ class ResearchResult(TypedDict):
 class SerpQuery:
     query: str
     research_goal: str
+
+class SerpQueryModel(BaseModel):
+    query: str
+    research_goal: str
+
+class SerpResultResponse(BaseModel):
+    learnings: list[str]
+    followUpQuestions: list[str]
+
+class ReportResponse(BaseModel):
+    reportMarkdown: str
 
 class Firecrawl:
     def __init__(self):
@@ -62,29 +73,26 @@ class Firecrawl:
             return {"data": []}
 
 async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Optional[List[str]] = None) -> List[SerpQuery]:
-    prompt = f"""Given the following prompt from the user, generate a list of SERP queries to research the topic. 
-        Return a JSON object with a 'queries' array field containing {num_queries} queries (or less if the original prompt is clear). 
-        Each query object should have 'query' and 'research_goal' fields. Make sure each query is unique and not similar to each other: <prompt>{query}</prompt>"""
-
+    prompt_str = ("Given the following prompt, generate a list of SERP queries to research the topic. "
+                  f"Return a JSON object with a 'queries' array field containing up to {num_queries} unique queries. "
+                  "Each query object should have 'query' and 'research_goal' fields.")
     if learnings:
-        prompt += f"\n\nHere are some learnings from previous research, use them to generate more specific queries: {' '.join(learnings)}"
-
-    messages = [
-        {"role": "system", "content": system_prompt()},
-        {"role": "user", "content": prompt},
-    ]
+        prompt_str += f" Use these learnings for additional context: {' '.join(learnings)}"
     api_client = ApiClient()
-    response = await api_client.llm_complete(messages=messages, response_format={"type": "json_object"})
-
+    response = await api_client.llm_complete(
+        system_instruction=system_prompt(),
+        prompt=prompt_str,
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": list[SerpQueryModel],
+        }
+    )
     try:
-        result = json.loads(response)
-        queries = result.get("queries", [])
-        return [SerpQuery(**q) for q in queries][:num_queries]
-    except json.JSONDecodeError as e:
+        queries_list = response.parsed
+        return [SerpQuery(**q.dict()) for q in queries_list][:num_queries]
+    except Exception as e:
         print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response}")
         return []
-
 
 async def process_serp_result(query: str, search_result: SearchResponse, num_learnings: int = 3, num_follow_up_questions: int = 3) -> Dict[str, List[str]]:
     contents = [trim_prompt(item.get("markdown", ""), 25_000) for item in search_result["data"] if item.get("markdown")]
@@ -92,33 +100,31 @@ async def process_serp_result(query: str, search_result: SearchResponse, num_lea
     # Create the contents string separately
     contents_str = "".join(f"<content>\n{content}\n</content>" for content in contents)
 
-    prompt = (
-        f"Given the following contents from a SERP search for the query <query>{query}</query>, "
-        f"generate a list of learnings from the contents. Return a JSON object with 'learnings' "
-        f"and 'followUpQuestions' arrays. Include up to {num_learnings} learnings and "
-        f"{num_follow_up_questions} follow-up questions. The learnings should be unique, "
-        "concise, and information-dense, including entities, metrics, numbers, and dates.\n\n"
+    prompt_str = (
+        f"Given the following contents for the query <query>{query}</query>, generate learnings and follow-up questions. "
+        f"Return a JSON object with up to {num_learnings} unique learnings and {num_follow_up_questions} follow-up questions. "
         f"<contents>{contents_str}</contents>"
     )
 
-    messages = [
-        {"role": "system", "content": system_prompt()},
-        {"role": "user", "content": prompt},
-    ]
     api_client = ApiClient()
-    response = await api_client.llm_complete(messages=messages, response_format={"type": "json_object"})
-
-    try:
-        result = json.loads(response)
-        return {
-            "learnings": result.get("learnings", [])[:num_learnings],
-            "followUpQuestions": result.get("followUpQuestions", [])[ : num_follow_up_questions],
+    response = await api_client.llm_complete(
+        system_instruction=system_prompt(),
+        prompt=prompt_str,
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": SerpResultResponse,
         }
-    except json.JSONDecodeError as e:
+    )
+    try:
+        result = response.parsed
+        return {
+            "learnings": result.learnings[:num_learnings],
+            "followUpQuestions": result.followUpQuestions[:num_follow_up_questions],
+        }
+    except Exception as e:
         print(f"Error parsing JSON response: {e}")
         print(f"Raw response: {response}")
         return {"learnings": [], "followUpQuestions": []}
-
 
 async def write_final_report(prompt: str, learnings: List[str], visited_urls: List[str]) -> str:
     learnings_string = trim_prompt("\n".join([f"<learning>\n{learning}\n</learning>" for learning in learnings]), 150_000)
@@ -131,21 +137,22 @@ async def write_final_report(prompt: str, learnings: List[str], visited_urls: Li
         f"Here are all the learnings from research:\n\n<learnings>\n{learnings_string}\n</learnings>"
     )
 
-    messages = [
-        {"role": "system", "content": system_prompt()},
-        {"role": "user", "content": user_prompt},
-    ]
     api_client = ApiClient()
-    response = await api_client.llm_complete(messages=messages, response_format={"type": "json_object"})
+    response = await api_client.llm_complete(
+        system_instruction=system_prompt(),
+        prompt=user_prompt,
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": ReportResponse,
+        }
+    )
 
     try:
-        result = json.loads(response)
-        report = result.get("reportMarkdown", "")
-
-        # Append sources
-        urls_section = "\n\n## Sources\n\n" + "\n".join([f"- {url}" for url in visited_urls])
+        result = response.parsed
+        report = result.reportMarkdown
+        urls_section = "\n\n## Sources\n\n" + "\n".join(f"- {url}" for url in visited_urls)
         return report + urls_section
-    except json.JSONDecodeError as e:
+    except Exception as e:
         print(f"Error parsing JSON response: {e}")
         print(f"Raw response: {response}")
         return "Error generating report"

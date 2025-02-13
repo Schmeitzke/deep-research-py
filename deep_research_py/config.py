@@ -10,10 +10,15 @@ def api_keys(c):
     c.FIRECRAWL_API_KEY = os.environ.get("FIRECRAWL_CONSULTANT")
     return c
 
+def llm(c):
+    c.llm_provider = "gemini"
+    return c
+
 def make_c():
     c = Stub()
     functions = [
         api_keys,
+        llm,
     ]
     for f in functions:
         c = f(c)

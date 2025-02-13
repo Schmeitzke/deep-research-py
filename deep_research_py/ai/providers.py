@@ -1,12 +1,8 @@
-import os
 from .text_splitter import RecursiveCharacterTextSplitter
 
 MIN_CHUNK_SIZE = 1000
 
-def trim_prompt(
-    prompt: str, context_size: int = int(os.environ.get("CONTEXT_SIZE", "128000"))
-) -> str:
-    """Trims a prompt to fit within the specified context size."""
+def trim_prompt(prompt: str, context_size: int) -> str:
     if not prompt:
         return ""
 

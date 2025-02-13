@@ -1,153 +1,69 @@
-# 🐍 Deep Research Assistant PY
+# Deep Research Python Project
 
-An AI-powered research tool in Python that helps you explore topics in depth using AI and web search.
+This codebase is an asynchronous research engine that guides users through in-depth research cycles and generates a final report. It uses several key components and external APIs to collect information, generate follow-up questions, search online, and compile research learnings.
 
-## Save 200 dollars a month and use this tool
+## Overview
 
-⭐ A python port with a little more cli pizzazz of [https://github.com/dzhng/deep-research](https://github.com/dzhng/deep-research) 
+- **run.py:**  
+  Contains the CLI entry point built with Typer and asyncio. It gathers user inputs for the research topic, breadth, and depth, and orchestrates the research cycle by calling the relevant functions.
 
-Contribute all you want to this. It was fun tweaking it.
+- **prompt.py:**  
+  Generates a system prompt including the current timestamp. This prompt is used as a context for LLM completions throughout the project.
 
-[video demo](https://app.arcade.software/share/e6N8mBQlAMbdc0dmOuS1)
+- **feedback.py:**  
+  Utilizes the system prompt from `prompt.py` and the API client to generate follow-up questions for the research topic. These questions help clarify what further information is needed.
 
-![alt text](./deep-research-py.gif)
+- **deep_research.py:**  
+  Serves as the core engine for the research process:
+  - **SERP Query Generation:** Uses LLM to produce search queries (`generate_serp_queries`).
+  - **Processing Search Results:** Through `process_serp_result`, it extracts learnings and follow-up questions from search results.
+  - **Recursive Research:** The `deep_research` function recursively calls itself to go deeper into the subject by reducing the depth and gradually refining the research.
+  - **Final Report Compilation:** The `write_final_report` function gathers all learnings and visited URLs to create a comprehensive markdown report.
 
-## Project Structure
+- **config.py:**  
+  Manages API keys and configurations by reading environment variables and setting up the client configuration.
 
-```plaintext
-deep_research_py/
-├── run.py              # Main CLI interface
-├── deep_research.py    # Core research logic
-├── feedback.py         # Follow-up question generation
-├── prompt.py           # System prompts for AI
-└── ai/
-    ├── providers.py    # AI service configuration
-    └── text_splitter.py # Text processing utilities
-```
+- **ai/text_splitter.py & ai/providers.py:**  
+  Implement strategies to handle large texts:
+  - **Text Splitting:** The `RecursiveCharacterTextSplitter` class recursively splits texts to ensure prompts do not exceed the maximum context size.
+  - **Trimming Prompts:** `trim_prompt` in `providers.py` ensures that query prompts are within context limits by leveraging the text splitter.
 
-## Features
+## Research Process Flow
 
-- **Interactive Research**: Asks follow-up questions to better understand your needs
-- **Depth Control**: Customize research breadth and depth
-- **Web Integration**: Uses Firecrawl for reliable web content extraction
-- **Smart Synthesis**: Combines multiple sources into coherent findings
-- **Beautiful CLI**: Rich text interface with progress tracking
-- **Markdown Reports**: Generates well-formatted research reports
+1. **User Input & Initialization (run.py):**
+   - The tool starts by prompting the user for a research query, research breadth, and depth.
+   - It then generates follow-up questions to refine the research plan.
 
-## Installation
+2. **Generating Research Queries (deep_research.py):**
+   - Using the refined research topic and initial learnings, the code calls `generate_serp_queries` to create a list of queries based on user feedback and context.
+   - Each query is processed asynchronously to adhere to API concurrency limits.
 
-`uv tool install deep-research-py`
+3. **Processing Search Results:**
+   - For each generated query, search results are obtained using Firecrawl.
+   - The `process_serp_result` function extracts relevant learnings and additional follow-up questions from the results.
 
+4. **Recursive Deep Dive:**
+   - If the specified research depth allows, the function recursively explores deeper queries. Each subsequent level reduces breadth and depth to refine the research and expand the list of learnings.
 
-## Configuration
+5. **Report Generation:**
+   - Once the research cycles finish, `write_final_report` collates all learnings and visited URLs to provide a comprehensive report in markdown format.
+   - The report includes detailed research learnings and sources.
 
-Set your API keys as environment variables:
+6. **Text Management:**
+   - Throughout the process, large texts are managed by splitting them into smaller chunks using the `RecursiveCharacterTextSplitter` and trimmed with `trim_prompt` to fit within API constraints.
 
-```bash
-# Required: OpenAI API key
-export OPENAI_API_KEY=your-openai-key-here
-# If you want to use a third-party OpenAI compliant API (e.g., OpenRouter or Gemini), add the following below:
-# export OPENAI_ENDPOINT="http://localhost:1234/v1"
+## Relationships Between Components
 
-# Required: Firecrawl API key
-export FIRECRAWL_KEY=your-firecrawl-key-here
-# If you want to use your self-hosted Firecrawl, add the following below:
-# FIRECRAWL_BASE_URL="http://localhost:3002"
-```
+- **LLM and API Client:**  
+  Most modules (feedback, deep_research, text splitting) interact with the LLM via a central API client, ensuring consistent behavior and error handling.
 
-## Usage
+- **Reused Prompts:**  
+  The `system_prompt` from `prompt.py` is a key component that is injected into several API calls, ensuring that the context remains consistent.
 
-Run the research assistant:
+- **Asynchronous Operations:**  
+  The project is built on `asyncio` to handle multiple API requests concurrently, controlled by semaphores to respect rate limits.
 
-```bash
-deep-research
-```
+- **Recursion:**  
+  The main driver of research is the recursive call within `deep_research` which adjusts its strategy based on previous findings, thereby refining the output progressively.
 
-You'll be prompted to:
-1. Enter your research topic
-2. Set research breadth (2-10, default 4)
-3. Set research depth (1-5, default 2)
-4. Answer follow-up questions
-5. Wait while it researches and generates a report
-
-You can change the concurrency level by setting the `--concurrency` flag (useful if you have a high API rate limit):
-
-```bash
-deep-research --concurrency 10
-```
-
-You can get a list of available commands:
-
-```bash
-deep-research --help
-```
-
-## Development Setup
-
-Clone the repository and set up your environment:
-
-```bash
-# Clone the repository
-git clone https://github.com/epuerta9/deep-research-py.git
-cd deep-research-py
-
-# Create and activate virtual environment
-uv venv 
-source .venv/bin/activate
-
-# Install in development mode
-uv pip install -e .
-
-# Set your API keys
-export OPENAI_API_KEY=your-openai-key-here
-export FIRECRAWL_KEY=your-firecrawl-key-here
-
-# Run the tool
-deep-research
-```
-
-## Requirements
-
-- Python 3.9 or higher
-- OpenAI API key (GPT-4 access recommended)
-- Firecrawl API key for web search
-- Dependencies:
-  - openai
-  - firecrawl-py
-  - typer
-  - rich
-  - prompt-toolkit
-  - aiohttp
-  - aiofiles
-  - tiktoken
-
-## Output
-
-The tool generates:
-- A markdown report saved as `output.md`
-- List of sources used
-- Summary of key findings
-- Detailed analysis of the topic
-
-## License
-
-MIT
-
-## Contributing
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Install development dependencies:
-```bash
-pip install pre-commit
-pre-commit install
-```
-4. Make your changes
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
+This overview should provide a clear understanding of the codebase structure, the research flow, and how modules interact to create a robust research tool.

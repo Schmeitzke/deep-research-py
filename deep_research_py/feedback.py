@@ -1,31 +1,23 @@
-from typing import List
-import json
+from pydantic import BaseModel
 from .prompt import system_prompt
 from .ai.api_client import ApiClient
 
-async def generate_feedback(query: str) -> List[str]:
-    """Generates follow-up questions to clarify research direction."""
+class FollowUpResponse(BaseModel):
+    questions: list[str]
+
+async def generate_feedback(query: str) -> list[str]:
     api_client = ApiClient()
-    messages = [
-        {"role": "system", "content": system_prompt()},
-        {
-            "role": "user",
-            "content": f"Given this research topic: {query}, generate 3-5 follow-up questions to better understand the user's research needs. Return the response as a JSON object with a 'questions' array field.",
-        },
-    ]
-    
-    response = await api_client.llm_complete(
-        messages=messages,
-        model="o3-mini",
-        response_format={"type": "json_object"}
-    )
-
-    # Parse the JSON response
+    instruction = system_prompt()
+    prompt_str = (f"Given this research topic: {query}, generate 3-5 follow-up questions "
+                  "to better understand the user's research needs.")
+    config = {
+        "response_mime_type": "application/json",
+        "response_schema": FollowUpResponse,
+    }
+    response = await api_client.llm_complete(system_instruction=instruction, prompt=prompt_str, config=config)
     try:
-        result = json.loads(response)
-        return result.get("questions", [])
-    except json.JSONDecodeError as e:
-        print(f"Error parsing JSON response: {e}")
-        print(f"Raw response: {response}")
+        result = response.parsed  # gemini response returns both text and parsed attributes
+        return result.questions
+    except Exception as e:
+        print(f"Error parsing response: {e}")
         return []
-
