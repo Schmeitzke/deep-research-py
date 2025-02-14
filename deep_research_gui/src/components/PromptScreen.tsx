@@ -1,45 +1,86 @@
+// src/components/PromptScreen.tsx
 import React, { useState } from 'react';
 import '../styles/PromptScreen.css';
 
 interface PromptScreenProps {
-  onStartChat: (prompt: string) => void;
+  onStartChat: (prompt: string, computeMode: 'low' | 'medium' | 'high') => void;
 }
 
 const PromptScreen: React.FC<PromptScreenProps> = ({ onStartChat }) => {
   const [prompt, setPrompt] = useState('');
+  const [computeMode, setComputeMode] = useState<'low' | 'medium' | 'high'>('medium');
+  const [showComputeOptions, setShowComputeOptions] = useState(false);
+
+  // Map compute mode to research labels
+  const computeLabels = {
+    low: 'Quick Research',
+    medium: 'Balanced Research',
+    high: 'Deep Research'
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim().length > 0) {
-      onStartChat(prompt.trim());
+      onStartChat(prompt.trim(), computeMode);
     }
   };
 
-  // New handler for Enter key submission
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      // Create a synthetic event to pass to handleSubmit
       handleSubmit(e as unknown as React.FormEvent);
     }
+  };
+
+  const toggleComputeOptions = () => {
+    setShowComputeOptions(!showComputeOptions);
+  };
+
+  const selectComputeMode = (mode: 'low' | 'medium' | 'high') => {
+    setComputeMode(mode);
+    setShowComputeOptions(false);
   };
 
   return (
     <div className="prompt-screen">
       <div className="prompt-header">
-        <h1 className="prompt-title">What can I help with?</h1>
+        <h1 className="prompt-title">What can I help you with?</h1>
       </div>
       <div className="prompt-form-container">
         <form onSubmit={handleSubmit} className="prompt-form">
-          {/* Changed input to textarea for multi-line support */}
-          <textarea
-            className="prompt-input"
-            placeholder="Ask me anything..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={3}
-            onKeyDown={handleKeyDown}  // New onKeyDown handler added
-          />
+          <div className="prompt-input-container">
+            <textarea
+              className="prompt-input"
+              placeholder="Ask me anything..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={3}
+              onKeyDown={handleKeyDown}
+            />
+            <div className="compute-section">
+              <button
+                type="button"
+                className="compute-button"
+                onClick={toggleComputeOptions}
+              >
+                {computeLabels[computeMode]}
+              </button>
+              {showComputeOptions && (
+                <div className="compute-dropdown">
+                  <button type="button" onClick={() => selectComputeMode('low')}>
+                    Quick Research
+                  </button>
+                  <button type="button" onClick={() => selectComputeMode('medium')}>
+                    Balanced Research
+                  </button>
+                  <button type="button" onClick={() => selectComputeMode('high')}>
+                    Deep Research
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <button type="submit" className="prompt-submit-btn">
             <svg viewBox="0 0 36 36" fill="none" width="36" height="36">
               <circle cx="18" cy="18" r="16" fill="#2b81f6" />

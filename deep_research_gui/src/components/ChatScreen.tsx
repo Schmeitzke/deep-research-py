@@ -6,15 +6,16 @@ import MarkdownMessage from './MarkdownMessage';
 
 interface ChatScreenProps {
   initialPrompt: string;
+  computeMode: 'low' | 'medium' | 'high';
 }
 
-const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt }) => {
+const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) => {
   const {
     messages,
     sendUserMessage,
     isComplete,
     finalReport
-  } = useChat(initialPrompt);
+  } = useChat(initialPrompt, computeMode);
 
   const [userInput, setUserInput] = useState('');
 
@@ -32,7 +33,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt }) => {
       <div className="chat-messages">
         {messages.map((msg: ChatMessageData, index: number) => {
           if (msg.type === 'finalReport') {
-            // Render the final markdown report
             return (
               <MarkdownMessage key={index} markdown={msg.content} role="system" />
             );
@@ -49,7 +49,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt }) => {
 
       {!isComplete && (
         <form onSubmit={handleSend} className="chat-input">
-          {/* Changed input to textarea for multi-line support and reduced width */}
           <textarea
             placeholder="Type your answer here..."
             value={userInput}
