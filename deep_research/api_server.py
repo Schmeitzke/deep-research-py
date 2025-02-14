@@ -1,4 +1,6 @@
 # api_server.py
+# uvicorn deep_research.api_server:app --reload --port 8000
+
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +19,27 @@ app.add_middleware(
 )
 
 # ---------------------------
-# Existing /api/research
+# /api/feedback endpoint
+# ---------------------------
+class FeedbackRequest(BaseModel):
+    query: str
+
+class FeedbackResponse(BaseModel):
+    questions: list[str]
+
+@app.post("/api/feedback", response_model=FeedbackResponse)
+async def feedback_endpoint(req: FeedbackRequest):
+    """
+    Calls the LLM to get follow-up questions about the user query.
+    """
+    try:
+        questions = await generate_feedback(req.query)
+        return FeedbackResponse(questions=questions)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------------------
+# /api/research
 # ---------------------------
 class ResearchRequest(BaseModel):
     query: str
@@ -49,26 +71,5 @@ async def perform_research(req: ResearchRequest):
             visited_urls=research_results.get("visited_urls", []),
             final_report=final_report,
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ---------------------------
-# NEW /api/feedback endpoint
-# ---------------------------
-class FeedbackRequest(BaseModel):
-    query: str
-
-class FeedbackResponse(BaseModel):
-    questions: list[str]
-
-@app.post("/api/feedback", response_model=FeedbackResponse)
-async def feedback_endpoint(req: FeedbackRequest):
-    """
-    Calls the LLM to get follow-up questions about the user query.
-    """
-    try:
-        questions = await generate_feedback(req.query)
-        return FeedbackResponse(questions=questions)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
