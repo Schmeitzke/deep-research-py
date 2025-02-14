@@ -48,12 +48,28 @@
   background-color: #2a2a2a;
   color: #f1f1f1;
   outline: none;
-  resize: vertical;
+  resize: none; /* Disable manual resizing */
   overflow: auto;
 }
 
 .prompt-input::placeholder {
   color: #999;
+}
+
+/* Custom modern scrollbar for prompt-input */
+.prompt-input::-webkit-scrollbar {
+  width: 8px;
+}
+.prompt-input::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+.prompt-input::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 4px;
+}
+.prompt-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.5);
 }
 
 /* Enlarged button size plus a hover scale animation */
