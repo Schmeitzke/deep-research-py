@@ -38,33 +38,27 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
             );
           }
           return (
-            <ChatMessage
-              key={index}
-              content={msg.content}
-              role={msg.role}
-            />
+            <ChatMessage key={index} content={msg.content} role={msg.role} />
           );
         })}
       </div>
-
-      {!isComplete && (
-        <form onSubmit={handleSend} className="chat-input">
-          <textarea
-            placeholder="Type your answer here..."
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            rows={2}
-            style={{ width: '60%' }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(e);
-              }
-            }}
-          />
-          <button type="submit">Send</button>
-        </form>
-      )}
+      <form onSubmit={handleSend} className="chat-input">
+        <textarea
+          placeholder={isComplete ? "Research complete" : "Type your answer here..."}
+          value={userInput}
+          onChange={(e) => setUserInput(e.target.value)}
+          rows={2}
+          style={{ width: '60%' }}
+          disabled={isComplete}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend(e);
+            }
+          }}
+        />
+        <button type="submit" disabled={isComplete}>Send</button>
+      </form>
     </div>
   );
 };

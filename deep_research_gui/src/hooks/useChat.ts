@@ -1,4 +1,5 @@
 // src/hooks/useChat.ts
+
 import { useEffect, useState, useRef } from 'react';
 
 export interface ChatMessageData {
@@ -21,6 +22,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
   const [answers, setAnswers] = useState<string[]>([]);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [finalReport, setFinalReport] = useState<string | null>(null);
+  const researchStartedRef = useRef(false); // new ref to track deep research start
 
   const hasFetchedRef = useRef(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -29,12 +31,12 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     if (!initialPrompt || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    // Show user's initial prompt
+    // Display the user's initial prompt
     setMessages([
       { role: 'user', type: 'text', content: initialPrompt },
     ]);
 
-    // Get follow-up questions from /api/feedback
+    // Fetch follow-up questions from the /api/feedback endpoint
     const getFeedbackQuestions = async () => {
       try {
         const res = await fetch(`${API_URL}/api/feedback`, {
@@ -66,7 +68,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     getFeedbackQuestions();
   }, [initialPrompt, API_URL]);
 
-  // Dynamically map computeMode -> breadth/depth
+  // Dynamically map computeMode to breadth and depth parameters
   const getBreadthDepth = () => {
     switch (computeMode) {
       case 'low':
@@ -79,7 +81,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Called after user answers all follow-up questions
+  // Function to initiate deep research once all follow-up questions are answered
   const startDeepResearch = async () => {
     setMessages((prev) => [
       ...prev,
@@ -131,8 +133,9 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Called when user enters an answer in ChatScreen
+  // Called when the user submits an answer in ChatScreen
   const sendUserMessage = (message: string) => {
+    // Append the user's message
     setMessages((prev) => [
       ...prev,
       { role: 'user', type: 'text', content: message },
@@ -142,12 +145,13 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     setCurrentQuestionIndex((prevIndex) => {
       const nextIndex = prevIndex + 1;
       if (questionQueue[nextIndex]) {
+        // Display the next follow-up question
         setMessages((prev) => [
           ...prev,
           { role: 'system', type: 'question', content: questionQueue[nextIndex] },
         ]);
-      } else {
-        // All questions answered => run deep research
+      } else if (!researchStartedRef.current) { // updated check using ref
+        researchStartedRef.current = true; // mark research as started
         startDeepResearch();
       }
       return nextIndex;
