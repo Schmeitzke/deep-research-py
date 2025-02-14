@@ -6,7 +6,8 @@ import typer
 from functools import wraps
 from prompt_toolkit import PromptSession
 
-from deep_research.deep_research import deep_research, write_final_report
+from deep_research.deep_research import deep_research
+from deep_research.report_writer import write_final_report
 from deep_research.feedback import generate_feedback
 
 # Redirect all prints to terminal and log file.

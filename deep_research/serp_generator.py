@@ -28,7 +28,7 @@ async def generate_serp_queries(query: str, num_queries: int = 3, learnings: Opt
         prompt=prompt_str,
         config={
             "response_mime_type": "application/json",
-            "response_schema": [SerpQueryModel],
+            "response_schema": list[SerpQueryModel],
         }
     )
     try:

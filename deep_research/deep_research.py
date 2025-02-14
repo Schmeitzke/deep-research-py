@@ -1,10 +1,7 @@
-from typing import List, Dict, TypedDict, Optional
-from dataclasses import dataclass
+from typing import List, Dict, TypedDict
 import asyncio
-from .prompt import system_prompt
 from deep_research.serp_generator import generate_serp_queries, SerpQuery
 from deep_research.serp_processor import process_serp_result
-from deep_research.report_writer import write_final_report
 from deep_research.api_client import ApiClient
 from pydantic import BaseModel
 
@@ -81,13 +78,16 @@ async def deep_research(query: str, breadth: int, depth: int, concurrency: int, 
         async with semaphore:
             try:
                 api_client = ApiClient()
-                result = await api_client.firecrawl_search(serp_query.query, timeout=15000, limit=5)
+                print(f"Searching for query: {serp_query.query}")
+                result = await api_client.firecrawl_search(serp_query.query, timeout=15000, limit=2)
+                print("Search result:", result)
                 new_urls = [item.get("url") for item in result["data"] if item.get("url")]
 
                 new_breadth = max(1, breadth // 2)
                 new_depth = depth - 1
 
                 new_learnings = await process_serp_result(query=serp_query.query, search_result=result, num_follow_up_questions=new_breadth)
+                print("Learnings:", new_learnings)
 
                 all_learnings = learnings + new_learnings["learnings"]
                 all_urls = visited_urls + new_urls
@@ -106,6 +106,7 @@ async def deep_research(query: str, breadth: int, depth: int, concurrency: int, 
                         learnings=all_learnings,
                         visited_urls=all_urls,
                     )
+                print("Deep research complete")
 
                 return {"learnings": all_learnings, "visited_urls": all_urls}
 

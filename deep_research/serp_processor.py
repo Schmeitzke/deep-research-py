@@ -1,15 +1,26 @@
-from typing import Dict
-from deep_research.config_project import create_c
+from typing import Dict, List
 from deep_research.prompt import system_prompt
 from deep_research.api_client import ApiClient
+from pydantic import BaseModel
 
-async def process_serp_result(query: str, search_result: dict, num_learnings: int = 3, num_follow_up_questions: int = 3) -> Dict[str, list[str]]:
+# Restored schema as in the original combined file
+class SerpResultResponse(BaseModel):
+    learnings: list[str]
+    followUpQuestions: list[str]
+
+async def process_serp_result(query: str, search_result: dict, num_learnings: int = 3, num_follow_up_questions: int = 3) -> Dict[str, List[str]]:
+
+    # Initialize an empty list to store the processed content
     contents = []
+    # Iterate through each item in the search results
     for item in search_result["data"]:
+        # Get the markdown content if it exists
         markdown = item.get("markdown", "")
+        # If markdown exists, trim it and add to contents
         if markdown:
             contents.append(markdown)
 
+    # Create the contents string separately
     contents_str = "".join(f"<content>\n{content}\n</content>" for content in contents)
 
     prompt_str = (
@@ -24,7 +35,7 @@ async def process_serp_result(query: str, search_result: dict, num_learnings: in
         prompt=prompt_str,
         config={
             "response_mime_type": "application/json",
-            "response_schema": {"type": "json_object"},
+            "response_schema": SerpResultResponse,
         }
     )
     try:
