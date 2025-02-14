@@ -49,13 +49,18 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt }) => {
 
       {!isComplete && (
         <form onSubmit={handleSend} className="chat-input">
-          <input
-            type="text"
+          {/* Changed input to textarea for multi-line support and reduced width */}
+          <textarea
             placeholder="Type your answer here..."
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
+            rows={2}
+            style={{ width: '60%' }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSend(e);
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend(e);
+              }
             }}
           />
           <button type="submit">Send</button>

@@ -1,5 +1,5 @@
 // src/hooks/useChat.ts
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 // Types of messages in the chat
 export interface ChatMessageData {
@@ -23,6 +23,8 @@ export function useChat(initialPrompt: string): UseChatReturn {
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [finalReport, setFinalReport] = useState<string | null>(null);
 
+  const hasFetchedRef = useRef(false);  // new ref to avoid duplicate fetches
+
   // Use Vite's environment variable or fallback
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -31,7 +33,8 @@ export function useChat(initialPrompt: string): UseChatReturn {
    * then call /api/feedback to retrieve follow-up questions from the backend.
    */
   useEffect(() => {
-    if (!initialPrompt) return;
+    if (!initialPrompt || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
 
     // 1) Show the user’s initial prompt in the chat
     setMessages([

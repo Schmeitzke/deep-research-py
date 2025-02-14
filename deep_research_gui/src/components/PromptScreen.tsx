@@ -15,11 +15,22 @@ const PromptScreen: React.FC<PromptScreenProps> = ({ onStartChat }) => {
     }
   };
 
+  // New handler for Enter key submission
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // Create a synthetic event to pass to handleSubmit
+      handleSubmit(e as unknown as React.FormEvent);
+    }
+  };
+
   return (
     <div className="prompt-screen">
-      <h1 className="prompt-title">What can I help with?</h1>
-      <form onSubmit={handleSubmit} className="prompt-form">
-        <div className="prompt-box">
+      <div className="prompt-header">
+        <h1 className="prompt-title">What can I help with?</h1>
+      </div>
+      <div className="prompt-form-container">
+        <form onSubmit={handleSubmit} className="prompt-form">
           {/* Changed input to textarea for multi-line support */}
           <textarea
             className="prompt-input"
@@ -27,13 +38,13 @@ const PromptScreen: React.FC<PromptScreenProps> = ({ onStartChat }) => {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
+            onKeyDown={handleKeyDown}  // New onKeyDown handler added
           />
           <button type="submit" className="prompt-submit-btn">
-            {/* Upward arrow inside a circle */}
-            <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
-              <circle cx="12" cy="12" r="10" fill="#2b81f6" />
+            <svg viewBox="0 0 36 36" fill="none" width="36" height="36">
+              <circle cx="18" cy="18" r="16" fill="#2b81f6" />
               <path
-                d="M12 7L12 17M12 7L7 12M12 7L17 12"
+                d="M18 10L18 26M18 10L10 18M18 10L26 18"
                 stroke="#fff"
                 strokeWidth="2"
                 strokeLinecap="round"
@@ -41,8 +52,8 @@ const PromptScreen: React.FC<PromptScreenProps> = ({ onStartChat }) => {
               />
             </svg>
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };
