@@ -1,6 +1,6 @@
 // src/hooks/useChat.ts
-
 import { useEffect, useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 
 export interface ChatMessageData {
   role: 'user' | 'system';
@@ -10,7 +10,7 @@ export interface ChatMessageData {
 
 interface UseChatReturn {
   messages: ChatMessageData[];
-  sendUserMessage: (message: string) => void;
+  sendUserMessage: (message: string) => Promise<void>;
   isComplete: boolean;
   finalReport: string | null;
 }
@@ -22,8 +22,9 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
   const [answers, setAnswers] = useState<string[]>([]);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [finalReport, setFinalReport] = useState<string | null>(null);
-  const researchStartedRef = useRef(false); // new ref to track deep research start
 
+  // A ref to ensure research starts only once.
+  const researchStartedRef = useRef(false);
   const hasFetchedRef = useRef(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -31,12 +32,10 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     if (!initialPrompt || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    // Display the user's initial prompt
-    setMessages([
-      { role: 'user', type: 'text', content: initialPrompt },
-    ]);
+    // Display the user's initial prompt.
+    setMessages([{ role: 'user', type: 'text', content: initialPrompt }]);
 
-    // Fetch follow-up questions from the /api/feedback endpoint
+    // Fetch follow-up questions from the /api/feedback endpoint.
     const getFeedbackQuestions = async () => {
       try {
         const res = await fetch(`${API_URL}/api/feedback`, {
@@ -44,9 +43,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: initialPrompt }),
         });
-        if (!res.ok) {
-          throw new Error(`HTTP error: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const data: { questions: string[] } = await res.json();
         setQuestionQueue(data.questions);
 
@@ -68,7 +65,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     getFeedbackQuestions();
   }, [initialPrompt, API_URL]);
 
-  // Dynamically map computeMode to breadth and depth parameters
+  // Map computeMode to research parameters.
   const getBreadthDepth = () => {
     switch (computeMode) {
       case 'low':
@@ -81,13 +78,8 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Function to initiate deep research once all follow-up questions are answered
+  // Function to initiate the deep research process.
   const startDeepResearch = async () => {
-    setMessages((prev) => [
-      ...prev,
-      { role: 'system', type: 'update', content: 'Doing research...' },
-    ]);
-
     const combinedQuery = [
       `Initial Query: ${initialPrompt}`,
       ...answers.map((ans, i) => `Q${i + 1}: ${questionQueue[i]} | A: ${ans}`),
@@ -106,14 +98,8 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
           concurrency: 2,
         }),
       });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data: {
-        learnings: string[];
-        visited_urls: string[];
-        final_report: string;
-      } = await response.json();
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data: { learnings: string[]; visited_urls: string[]; final_report: string } = await response.json();
 
       setMessages((prev) => [
         ...prev,
@@ -133,29 +119,39 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Called when the user submits an answer in ChatScreen
-  const sendUserMessage = (message: string) => {
-    // Append the user's message
+  // Convert sendUserMessage into an async function.
+  const sendUserMessage = async (message: string) => {
+    // Append the user's message.
     setMessages((prev) => [
       ...prev,
       { role: 'user', type: 'text', content: message },
     ]);
     setAnswers((prev) => [...prev, message]);
 
-    setCurrentQuestionIndex((prevIndex) => {
-      const nextIndex = prevIndex + 1;
-      if (questionQueue[nextIndex]) {
-        // Display the next follow-up question
+    const nextIndex = currentQuestionIndex + 1;
+
+    if (questionQueue[nextIndex]) {
+      // Display the next follow-up question.
+      setMessages((prev) => [
+        ...prev,
+        { role: 'system', type: 'question', content: questionQueue[nextIndex] },
+      ]);
+    } else if (!researchStartedRef.current) {
+      // Mark research as started.
+      researchStartedRef.current = true;
+      // Force the update of the "Doing research..." message synchronously.
+      flushSync(() => {
         setMessages((prev) => [
           ...prev,
-          { role: 'system', type: 'question', content: questionQueue[nextIndex] },
+          { role: 'system', type: 'update', content: 'Doing research...' },
         ]);
-      } else if (!researchStartedRef.current) { // updated check using ref
-        researchStartedRef.current = true; // mark research as started
-        startDeepResearch();
-      }
-      return nextIndex;
-    });
+      });
+      // Yield to the event loop so that the update is rendered.
+      await Promise.resolve();
+      // Start the research process.
+      startDeepResearch();
+    }
+    setCurrentQuestionIndex(nextIndex);
   };
 
   return {
