@@ -152,6 +152,9 @@ html, body {
   background-color: #1d1c1c; /* slightly darker than the screen background (#363030) */
   line-height: 1.4;
   white-space: pre-wrap;
+  overflow-wrap: break-word; /* ensure long words wrap */
+  word-wrap: break-word;      /* fallback for older browsers */
+  word-break: break-all; /* added to force wrapping even for long unbroken text */
 }
 
 .markdown-content {
