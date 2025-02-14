@@ -21,8 +21,8 @@ app.add_middleware(
 # ---------------------------
 class ResearchRequest(BaseModel):
     query: str
-    breadth: int = 4
-    depth: int = 2
+    breadth: int = 2
+    depth: int = 1
     concurrency: int = 2
 
 class ResearchResponse(BaseModel):

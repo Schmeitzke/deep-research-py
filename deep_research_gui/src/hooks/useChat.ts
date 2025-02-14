@@ -23,20 +23,28 @@ export function useChat(initialPrompt: string): UseChatReturn {
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [finalReport, setFinalReport] = useState<string | null>(null);
 
-  // We'll define the API URL for local dev via .env => VITE_API_URL
-  // or fallback to http://localhost:8000
+  // Use Vite's environment variable or fallback
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   /**
-   * 1) Immediately call /api/feedback to get real follow-up questions.
-   * 2) Insert the first question into the chat.
+   * Immediately add the user's prompt to the chat as the first message,
+   * then call /api/feedback to retrieve follow-up questions from the backend.
    */
   useEffect(() => {
     if (!initialPrompt) return;
 
+    // 1) Show the user’s initial prompt in the chat
+    setMessages([
+      {
+        role: 'user',
+        type: 'text',
+        content: initialPrompt,
+      },
+    ]);
+
+    // 2) Fetch follow-up questions from the backend
     const getFeedbackQuestions = async () => {
       try {
-        // Call /api/feedback with the user's prompt
         const res = await fetch(`${API_URL}/api/feedback`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -46,13 +54,10 @@ export function useChat(initialPrompt: string): UseChatReturn {
           throw new Error(`HTTP error: ${res.status}`);
         }
 
-        // Response is { questions: string[] }
         const data: { questions: string[] } = await res.json();
-
-        // Store the question queue
         setQuestionQueue(data.questions);
 
-        // Display the first question if available
+        // Insert the first follow-up question if it exists
         if (data.questions.length > 0) {
           setMessages((prev) => [
             ...prev,
@@ -61,7 +66,6 @@ export function useChat(initialPrompt: string): UseChatReturn {
         }
       } catch (err) {
         console.error('Failed to get feedback questions:', err);
-        // Optionally display an error message in the chat
         setMessages((prev) => [
           ...prev,
           { role: 'system', type: 'text', content: 'Error fetching follow-up questions.' },
@@ -69,20 +73,26 @@ export function useChat(initialPrompt: string): UseChatReturn {
       }
     };
 
-    // Fire it once
     getFeedbackQuestions();
   }, [initialPrompt, API_URL]);
 
   /**
    * Called after the user has answered the last question.
-   * This function sends the combined prompt + answers to /api/research
-   * and then displays the final report in the chat.
+   * 1) Adds a "Doing research..." message
+   * 2) Calls /api/research
+   * 3) Shows "Done" + the final report
    */
   const startDeepResearch = async () => {
+    // 1) Notify that we’re starting the research
+    setMessages((prev) => [
+      ...prev,
+      { role: 'system', type: 'update', content: 'Doing research...' },
+    ]);
+
     // Combine the user’s initial prompt + answers
     const combinedQuery = [
       `Initial Query: ${initialPrompt}`,
-      ...answers.map((ans, i) => `Q${i+1}: ${questionQueue[i]} | A: ${ans}`),
+      ...answers.map((ans, i) => `Q${i + 1}: ${questionQueue[i]} | A: ${ans}`),
     ].join('\n');
 
     try {
@@ -107,12 +117,19 @@ export function useChat(initialPrompt: string): UseChatReturn {
         final_report: string;
       } = await response.json();
 
-      // Display the final report in the chat
+      // 2) Show the final report (only once!)
       setMessages((prev) => [
         ...prev,
         { role: 'system', type: 'finalReport', content: data.final_report },
       ]);
       setFinalReport(data.final_report);
+
+      // 3) Notify that we’re done
+      setMessages((prev) => [
+        ...prev,
+        { role: 'system', type: 'update', content: 'Done' },
+      ]);
+
       setIsComplete(true);
     } catch (error) {
       console.error('Error fetching research results:', error);
@@ -131,25 +148,23 @@ export function useChat(initialPrompt: string): UseChatReturn {
    * If there are no more questions, we start deep research.
    */
   const sendUserMessage = (message: string) => {
-    // Append user’s answer to the chat
+    // Add user’s answer to the chat
     setMessages((prev) => [
       ...prev,
       { role: 'user', type: 'text', content: message },
     ]);
-    // Store the answer
     setAnswers((prev) => [...prev, message]);
 
-    // Move to the next question
+    // Move to next question or start the research if done
     setCurrentQuestionIndex((prevIndex) => {
       const nextIndex = prevIndex + 1;
-      // If we still have more questions, show the next question
       if (questionQueue[nextIndex]) {
         setMessages((prev) => [
           ...prev,
           { role: 'system', type: 'question', content: questionQueue[nextIndex] },
         ]);
       } else {
-        // No more questions => run deep research
+        // All questions answered => run deep research
         startDeepResearch();
       }
       return nextIndex;

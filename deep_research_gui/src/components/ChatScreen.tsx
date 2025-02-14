@@ -1,3 +1,4 @@
+// src/components/ChatScreen.tsx
 import React, { useState } from 'react';
 import { useChat, ChatMessageData } from '../hooks/useChat';
 import ChatMessage from './ChatMessage';
@@ -44,11 +45,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt }) => {
             />
           );
         })}
-
-        {/* Optionally, render the final report again if you want a separate display */}
-        {isComplete && finalReport && (
-          <MarkdownMessage markdown={finalReport} role="system" />
-        )}
       </div>
 
       {!isComplete && (

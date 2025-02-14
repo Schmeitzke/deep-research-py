@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/PromptScreen.css';
 
 interface PromptScreenProps {
   onStartChat: (prompt: string) => void;
@@ -16,18 +17,31 @@ const PromptScreen: React.FC<PromptScreenProps> = ({ onStartChat }) => {
 
   return (
     <div className="prompt-screen">
-      <h1>What can I help with?</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          className="prompt-input"
-          placeholder="Enter your topic or question..."
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-        <button type="submit" className="start-button">
-          Start
-        </button>
+      <h1 className="prompt-title">What can I help with?</h1>
+      <form onSubmit={handleSubmit} className="prompt-form">
+        <div className="prompt-box">
+          {/* Changed input to textarea for multi-line support */}
+          <textarea
+            className="prompt-input"
+            placeholder="Ask me anything..."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={3}
+          />
+          <button type="submit" className="prompt-submit-btn">
+            {/* Upward arrow inside a circle */}
+            <svg viewBox="0 0 24 24" fill="none" width="24" height="24">
+              <circle cx="12" cy="12" r="10" fill="#2b81f6" />
+              <path
+                d="M12 7L12 17M12 7L7 12M12 7L17 12"
+                stroke="#fff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </form>
     </div>
   );
