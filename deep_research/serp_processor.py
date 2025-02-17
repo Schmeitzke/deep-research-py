@@ -1,5 +1,5 @@
 from typing import Dict, List
-from deep_research.prompt import system_prompt
+from deep_research.utils.prompt import system_prompt
 from deep_research.api_client import ApiClient
 from pydantic import BaseModel
 

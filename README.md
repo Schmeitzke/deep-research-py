@@ -10,7 +10,7 @@ This codebase is an asynchronous research engine that guides users through in-de
 - **prompt.py:**  
   Generates a system prompt including the current timestamp. This prompt is used as a context for LLM completions throughout the project.
 
-- **feedback.py:**  
+- **follow_up.py:**  
   Utilizes the system prompt from `prompt.py` and the API client to generate follow-up questions for the research topic. These questions help clarify what further information is needed.
 
 - **deep_research.py:**  
@@ -35,7 +35,7 @@ This codebase is an asynchronous research engine that guides users through in-de
    - It then generates follow-up questions to refine the research plan.
 
 2. **Generating Research Queries (deep_research.py):**
-   - Using the refined research topic and initial learnings, the code calls `generate_serp_queries` to create a list of queries based on user feedback and context.
+   - Using the refined research topic and initial learnings, the code calls `generate_serp_queries` to create a list of queries based on user follow_up and context.
    - Each query is processed asynchronously to adhere to API concurrency limits.
 
 3. **Processing Search Results:**
@@ -55,7 +55,7 @@ This codebase is an asynchronous research engine that guides users through in-de
 ## Relationships Between Components
 
 - **LLM and API Client:**  
-  Most modules (feedback, deep_research, text splitting) interact with the LLM via a central API client, ensuring consistent behavior and error handling.
+  Most modules (follow_up, deep_research, text splitting) interact with the LLM via a central API client, ensuring consistent behavior and error handling.
 
 - **Reused Prompts:**  
   The `system_prompt` from `prompt.py` is a key component that is injected into several API calls, ensuring that the context remains consistent.

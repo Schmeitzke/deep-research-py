@@ -1,5 +1,5 @@
 import sys
-from deep_research.logger import Tee
+from deep_research.utils.logger import Tee
 
 import asyncio
 import typer
@@ -8,7 +8,7 @@ from prompt_toolkit import PromptSession
 
 from deep_research.deep_research import deep_research
 from deep_research.report_writer import write_final_report
-from deep_research.feedback import generate_feedback
+from deep_research.follow_up import generate_follow_up
 
 # Redirect all prints to terminal and log file.
 log_file = open("execution_log.txt", "w")
@@ -52,7 +52,7 @@ async def main(
 
     # First show progress for research plan
     print("\nCreating research plan...")
-    follow_up_questions = await generate_feedback(query)
+    follow_up_questions = await generate_follow_up(query)
 
     # Then collect answers separately from progress display
     print("\nFollow-up Questions:")

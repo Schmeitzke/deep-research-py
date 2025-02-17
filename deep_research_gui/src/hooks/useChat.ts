@@ -26,7 +26,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
   // A ref to ensure research starts only once.
   const researchStartedRef = useRef(false);
   const hasFetchedRef = useRef(false);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
   useEffect(() => {
     if (!initialPrompt || hasFetchedRef.current) return;
@@ -35,10 +35,10 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     // Display the user's initial prompt.
     setMessages([{ role: 'user', type: 'text', content: initialPrompt }]);
 
-    // Fetch follow-up questions from the /api/feedback endpoint.
-    const getFeedbackQuestions = async () => {
+    // Fetch follow-up questions from the /api/follow_up endpoint.
+    const getfollow_upQuestions = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/feedback`, {
+        const res = await fetch(`${API_URL}/api/follow_up`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: initialPrompt }),
@@ -54,7 +54,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
           ]);
         }
       } catch (err) {
-        console.error('Failed to get feedback questions:', err);
+        console.error('Failed to get follow_up questions:', err);
         setMessages((prev) => [
           ...prev,
           { role: 'system', type: 'text', content: 'Error fetching follow-up questions.' },
@@ -62,7 +62,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
       }
     };
 
-    getFeedbackQuestions();
+    getfollow_upQuestions();
   }, [initialPrompt, API_URL]);
 
   // Map computeMode to research parameters.

@@ -3,9 +3,12 @@ from openai import OpenAI
 from google import genai
 import google.generativeai as genai_old
 from google.genai import types
-from firecrawl import FirecrawlApp
 import tiktoken
 from deep_research.config_project import create_c
+import httpx
+from deep_research.utils.rate_limiter import RateLimiter
+from .utils.rate_limiter import global_rate_limiter
+
 c = create_c()
 
 class ApiClient:
@@ -14,7 +17,6 @@ class ApiClient:
         self.openai_client = None
         self.gemini_client = None
         self.xai_client = None
-        self.firecrawl_client = None
 
     async def check_and_trim_prompt(self, system_instruction: str, prompt: str, provider: str) -> str:
         if provider == "openai":
@@ -39,13 +41,11 @@ class ApiClient:
             if total <= context_window:
                 return prompt
             allowed_prompt_tokens = context_window - sys_count
-            # Naively truncate by splitting on whitespace.
             words = prompt.split()
             trimmed = " ".join(words[:allowed_prompt_tokens])
             return trimmed
         elif provider == "xai":
             context_window = 130000
-            # Naively count tokens by words for XAI (for real use, replace with proper API call)
             sys_count = len(system_instruction.split())
             prompt_count = len(prompt.split())
             total = sys_count + prompt_count
@@ -59,7 +59,6 @@ class ApiClient:
 
     async def llm_complete(self, *, system_instruction: str = "", prompt: str = "", config: dict = None, messages=None, response_format={"type": "json_object"}):
         loop = asyncio.get_event_loop()
-        # Trim the prompt if it exceeds the context window.
         prompt = await self.check_and_trim_prompt(system_instruction, prompt, self.api_provider)
         if messages is None:
             messages = [{"role": "system", "content": system_instruction},
@@ -100,19 +99,26 @@ class ApiClient:
             return completion.choices[0].message
         else:
             raise ValueError(f"Unknown API provider: {self.api_provider}")
- 
-    async def firecrawl_search(self, query, timeout=None, limit=None):
-        loop = asyncio.get_event_loop()
-        self.firecrawl_client = FirecrawlApp(api_key=c.FIRECRAWL_API_KEY)
-        params = {
-            "timeout": timeout, 
-            "limit": limit,
-            "scrapeOptions": {
-            "formats": ["markdown"]
-            }
+
+    async def brave_search(self, query: str, offset: int = 0, count: int = 10) -> dict:
+        url = "https://api.search.brave.com/res/v1/web/search"
+        headers = {
+            "Accept": "application/json",
+            "X-Subscription-Token": c.BRAVE_API_KEY
         }
-        search_result = await loop.run_in_executor(
-            None,
-            lambda: self.firecrawl_client.search(query=query, params=params)
-        )
-        return search_result
+        for current_offset in range(offset, 10):
+            await global_rate_limiter.wait()
+            params = {
+                "q": query,
+                "safesearch": "off",
+                "offset": current_offset,
+                "count": count
+            }
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    response = await client.get(url, params=params, headers=headers)
+                    response.raise_for_status()
+                    return response.json()  # Expected structure: { "web": { "results": [...] } }
+            except Exception as e:
+                print(f"Error with offset {current_offset} for query '{query}': {e}")
+        raise Exception(f"All offsets failed for query '{query}'")

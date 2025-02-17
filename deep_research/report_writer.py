@@ -1,5 +1,4 @@
-# report_writer.py
-from deep_research.prompt import system_prompt
+from deep_research.utils.prompt import system_prompt
 from deep_research.api_client import ApiClient
 from pydantic import BaseModel
 from typing import List

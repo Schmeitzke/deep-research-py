@@ -1,11 +1,9 @@
-# api_server.py
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from deep_research.deep_research import deep_research
 from deep_research.report_writer import write_final_report
-from deep_research.feedback import generate_feedback
+from deep_research.follow_up import generate_follow_up
 import logging
 import traceback
 
@@ -58,22 +56,22 @@ async def perform_research(req: ResearchRequest):
 
 
 # ---------------------------
-# /api/feedback endpoint
+# /api/follow_up endpoint
 # ---------------------------
-class FeedbackRequest(BaseModel):
+class follow_upRequest(BaseModel):
     query: str
 
-class FeedbackResponse(BaseModel):
+class follow_upResponse(BaseModel):
     questions: list[str]
 
-@app.post("/api/feedback", response_model=FeedbackResponse)
-async def feedback_endpoint(req: FeedbackRequest):
+@app.post("/api/follow_up", response_model=follow_upResponse)
+async def follow_up_endpoint(req: follow_upRequest):
     """
     Calls the LLM to get follow-up questions about the user query.
     """
     try:
-        questions = await generate_feedback(req.query)
-        return FeedbackResponse(questions=questions)
+        questions = await generate_follow_up(req.query)
+        return follow_upResponse(questions=questions)
     except Exception as e:
-        logging.error("Error in /api/feedback endpoint: %s", traceback.format_exc())
+        logging.error("Error in /api/follow_up endpoint: %s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))

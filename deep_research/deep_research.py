@@ -2,8 +2,9 @@ from typing import List, Dict, TypedDict
 import asyncio
 from deep_research.serp_generator import generate_serp_queries, SerpQuery
 from deep_research.serp_processor import process_serp_result
-from deep_research.api_client import ApiClient
+from deep_research.page_scraper import scrape_and_extract
 from pydantic import BaseModel
+from deep_research.api_client import ApiClient
 
 class SearchResponse(TypedDict):
     data: List[Dict[str, str]]
@@ -23,70 +24,36 @@ class SerpResultResponse(BaseModel):
 class ReportResponse(BaseModel):
     reportMarkdown: str
 
-class Firecrawl:
-    def __init__(self):
-        self.api_client = ApiClient()
-
-    async def search(self, query: str) -> SearchResponse:
-        """Search using Firecrawl SDK in a thread pool to keep it async."""
-        try:
-            response = await self.api_client.firecrawl_search(query=query, timeout=15000, limit=5)
-
-            # Handle the response format from the SDK
-            if isinstance(response, dict) and "data" in response:
-                # Response is already in the right format
-                return response
-            elif isinstance(response, dict) and "success" in response:
-                # Response is in the documented format
-                return {"data": response.get("data", [])}
-            elif isinstance(response, list):
-                # Response is a list of results
-                formatted_data = []
-                for item in response:
-                    if isinstance(item, dict):
-                        formatted_data.append(item)
-                    else:
-                        # Handle non-dict items (like objects)
-                        formatted_data.append(
-                            {
-                                "url": getattr(item, "url", ""),
-                                "markdown": getattr(item, "markdown", "")
-                                or getattr(item, "content", ""),
-                                "title": getattr(item, "title", "")
-                                or getattr(item, "metadata", {}).get("title", ""),
-                            }
-                        )
-                return {"data": formatted_data}
-            else:
-                print(f"Unexpected response format from Firecrawl: {type(response)}")
-                return {"data": []}
-
-        except Exception as e:
-            print(f"Error searching with Firecrawl: {e}")
-            print(f"Response type: {type(response) if 'response' in locals() else 'N/A'}")
-            return {"data": []}
-
 async def deep_research(query: str, breadth: int, depth: int, concurrency: int, learnings: List[str] = None, visited_urls: List[str] = None) -> Dict[str, List[str]]:
     learnings = learnings or []
     visited_urls = visited_urls or []
 
     serp_queries = await generate_serp_queries(query=query, num_queries=breadth, learnings=learnings)
-
     semaphore = asyncio.Semaphore(concurrency)
 
     async def process_query(serp_query: SerpQuery) -> Dict[str, List[str]]:
         async with semaphore:
             try:
-                api_client = ApiClient()
                 print(f"Searching for query: {serp_query.query}")
-                result = await api_client.firecrawl_search(serp_query.query, timeout=15000, limit=2)
-                print("Search result:", result)
-                new_urls = [item.get("url") for item in result["data"] if item.get("url")]
+                api_client = ApiClient()
+                result = await api_client.brave_search(query=serp_query.query, offset=0)
+                # Removed manual sleep call since rate limiting is handled in brave_search
 
+                # Parse the Brave API result; expected structure: { "web": { "results": [ { "url": "..." }, ... ] } }
+                new_urls = [item.get("url") for item in result.get("web", {}).get("results", []) if item.get("url")]
+
+                # For each url, scrape the full HTML and extract heading and body via LLM
+                scrape_tasks = [scrape_and_extract(url) for url in new_urls]
+                scraped_results = await asyncio.gather(*scrape_tasks)
+                # Each scraped result is expected as { "markdown": "..." }
+
+                # Build a compatible search_result structure for process_serp_result
+                search_result = {"data": scraped_results}
                 new_breadth = max(1, breadth // 2)
                 new_depth = depth - 1
 
-                new_learnings = await process_serp_result(query=serp_query.query, search_result=result, num_follow_up_questions=new_breadth)
+                # Get learnings using existing serp_processor logic on scraped content
+                new_learnings = await process_serp_result(query=serp_query.query, search_result=search_result, num_follow_up_questions=new_breadth)
                 print("Learnings:", new_learnings)
 
                 all_learnings = learnings + new_learnings["learnings"]
@@ -107,7 +74,6 @@ async def deep_research(query: str, breadth: int, depth: int, concurrency: int, 
                         visited_urls=all_urls,
                     )
                 print("Deep research complete")
-
                 return {"learnings": all_learnings, "visited_urls": all_urls}
 
             except Exception as e:
@@ -118,8 +84,6 @@ async def deep_research(query: str, breadth: int, depth: int, concurrency: int, 
                 return {"learnings": [], "visited_urls": []}
 
     results = await asyncio.gather(*[process_query(q) for q in serp_queries])
-
     all_learnings = list(set(learning for result in results for learning in result["learnings"]))
     all_urls = list(set(url for result in results for url in result["visited_urls"]))
-
     return {"learnings": all_learnings, "visited_urls": all_urls}

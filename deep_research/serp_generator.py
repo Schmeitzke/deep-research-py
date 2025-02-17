@@ -1,7 +1,7 @@
 from typing import List, Optional
 from dataclasses import dataclass
 from deep_research.config_project import create_c
-from deep_research.prompt import system_prompt
+from deep_research.utils.prompt import system_prompt
 from deep_research.api_client import ApiClient
 from pydantic import BaseModel
 
