@@ -5,6 +5,8 @@ from deep_research.api_client import ApiClient
 # Import for Selenium fallback
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+import os
+from selenium.webdriver.chrome.service import Service
 
 headers = {
     "User-Agent": (
@@ -27,17 +29,21 @@ async def scrape_and_extract(url: str) -> dict:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
             full_html = response.text
+            print(f"Fetched URL with httpx for {url}")
     except Exception as e:
-        print(f"Error fetching URL with httpx for {url}: {e}")
+        print(f"Error fetching URL with httpx for {url}, attempting Selenium fallback")
         # Selenium fallback (synchronous, consider running in executor if needed)
         try:
             options = Options()
-            # Set headless mode using add_argument
+            # Set headless mode and mute logging
             options.add_argument("--headless")
             options.add_argument("--disable-gpu")
-            driver = webdriver.Chrome(options=options)
+            options.add_argument("--log-level=3")  # Added to minimize logging
+            service = Service(log_path=os.devnull)  # Mute ChromeDriver logs
+            driver = webdriver.Chrome(options=options, service=service)
             driver.get(url)
             full_html = driver.page_source
+            print(f"Fetched URL with Selenium for {url}")
             driver.quit()
         except Exception as e2:
             print(f"Selenium fallback failed for {url}: {e2}")
