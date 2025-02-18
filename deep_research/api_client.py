@@ -4,9 +4,8 @@ from google import genai
 import google.generativeai as genai_old
 from google.genai import types
 import tiktoken
-from deep_research.config_project import create_c
+from config_all.config_project import create_c
 import httpx
-from deep_research.utils.rate_limiter import RateLimiter
 from .utils.rate_limiter import global_rate_limiter
 
 c = create_c()

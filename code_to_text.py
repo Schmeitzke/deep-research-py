@@ -41,11 +41,13 @@ def main():
     current_dir = Path(__file__).parent
     src_dir = current_dir / 'deep_research'
     frontend_dir = current_dir / 'deep_research_gui'  # changed code: added frontend directory
+    db_dir = current_dir / 'deep_research_db'  # changed code: added db directory
+    config = current_dir / 'config_all'  # changed code: added config directory
     
     output_path = current_dir / 'source_code.txt'
     
     with open(output_path, 'w', encoding='utf-8') as output_file:
-        for directory in [src_dir, frontend_dir]:  # changed code: iterate both directories
+        for directory in [src_dir, frontend_dir, db_dir, config]:  # changed code: iterate both directories
             if directory.exists():
                 print_directory_structure(str(directory), output_file)
                 write_file_contents(str(directory), output_file)

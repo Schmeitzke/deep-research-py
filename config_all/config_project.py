@@ -21,11 +21,17 @@ def llm(c):
     c.xai_model = "grok-2-1212"
     return c
 
+def db(c):
+    c.db_user = os.environ.get("DB_USER")
+    c.db_password = os.environ.get("DB_PASSWORD")
+    return c
+
 def make_c():
     c = Stub()
     functions = [
         api_keys,
         llm,
+        db,
     ]
     for f in functions:
         c = f(c)
