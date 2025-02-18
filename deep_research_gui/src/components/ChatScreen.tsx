@@ -48,7 +48,6 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
           rows={2}
-          style={{ width: '60%' }}
           disabled={isComplete}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {

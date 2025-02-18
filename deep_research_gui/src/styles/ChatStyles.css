@@ -49,26 +49,26 @@ html, body {
   background: rgba(255,255,255,0.5);
 }
 
-/* Fixed chat input area that remains visible at the bottom */
 .chat-input {
-  flex-shrink: 0; /* Prevent input area from shrinking */
+  display: flex;           /* Lay out textarea and button in a row */
+  flex-wrap: nowrap;       /* Prevent wrapping */
+  align-items: center;     /* Vertically center items */
   padding: 16px;
   border-top: 1px solid #333;
-  background-color: #363030; /* Consistent dark background */
-  /* added flex centering */
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  background-color: #363030;
 }
 
+/* Textarea: fixed 90% width of the .chat-input container */
 .chat-input textarea {
+  flex: 0 0 90%;
+  margin-right: 8px;       /* Space between textarea and button */
   padding: 10px;
   border: none;
   border-radius: 4px;
-  margin-right: 8px;
   resize: none;
-  width: 60%;
   font-size: 1.3rem;
+  height: 3rem;            /* Matches button height */
+  box-sizing: border-box;   /* Ensures padding doesn't exceed 90% */
 }
 
 /* Custom scrollbar for the textarea */
@@ -87,13 +87,20 @@ html, body {
   background: rgba(255,255,255,0.5);
 }
 
+/* Button: fixed 10% width of the .chat-input container */
 .chat-input button {
+  flex: 0 0 10%;
   padding: 10px 16px;
   border: none;
   border-radius: 4px;
   background-color: #2b81f6;
   color: #fff;
   cursor: pointer;
+  height: 3rem;            /* Matches textarea height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;   /* Helps preserve the 10% width consistently */
 }
 
 /* Chat message styling */
@@ -123,6 +130,7 @@ html, body {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-all;
+  color: #f1f1f1;  /* added to ensure white text */
 }
 
 /* Markdown-specific styling */

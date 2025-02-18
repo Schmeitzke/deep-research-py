@@ -12,8 +12,6 @@ User = get_user_model()
 
 @csrf_exempt
 def save_chat(request):
-    logger.info("Received request to save chat.")
-    
     if request.method == "OPTIONS":
         response = JsonResponse({"detail": "ok"})
         response["Access-Control-Allow-Origin"] = "*"
@@ -64,7 +62,76 @@ def save_chat(request):
         logger.error(f"Error saving chat session: {e}")
         return JsonResponse({"error": str(e)}, status=500)
     
-    return JsonResponse({
+    response = JsonResponse({
         "message": "Chat session saved successfully.",
         "session_id": chat_session.id
     })
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
+
+def list_chats(request):
+    if request.method != "GET":
+        return HttpResponseBadRequest("Only GET requests are allowed.")
+    
+    search = request.GET.get("search", "").strip()
+    
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        try:
+            user = User.objects.get(username="anonymous")
+        except User.DoesNotExist:
+            user = User.objects.create_user(username="anonymous", password="unused")
+    
+    sessions = ChatSession.objects.filter(user=user)
+    if search:
+        sessions = sessions.filter(title__icontains=search)
+    sessions = sessions.order_by("-created_at")
+    
+    session_list = []
+    for session in sessions:
+        session_list.append({
+            "id": session.id,
+            "title": session.title,
+            "created_at": session.created_at.isoformat()
+        })
+    
+    response = JsonResponse({"sessions": session_list})
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
+
+def get_chat(request, session_id):
+    if request.method != "GET":
+        return HttpResponseBadRequest("Only GET requests are allowed.")
+    
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        try:
+            user = User.objects.get(username="anonymous")
+        except User.DoesNotExist:
+            user = User.objects.create_user(username="anonymous", password="unused")
+    
+    try:
+        session = ChatSession.objects.get(id=session_id, user=user)
+    except ChatSession.DoesNotExist:
+        return HttpResponseBadRequest("Chat session not found.")
+    
+    messages = session.messages.all().order_by("created_at")
+    message_list = [
+        {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()}
+        for m in messages
+    ]
+    
+    return_response = JsonResponse({
+        "session": {
+            "id": session.id,
+            "title": session.title,
+            "created_at": session.created_at.isoformat(),
+            "messages": message_list,
+        }
+    })
+    return_response["Access-Control-Allow-Origin"] = "*"
+    return return_response

@@ -2,28 +2,47 @@
 import React, { useState } from 'react';
 import PromptScreen from './components/PromptScreen';
 import ChatScreen from './components/ChatScreen';
+import ChatList from './components/ChatList';
+import OldChatScreen from './components/OldChatScreen';
 
-function App() {
+const App: React.FC = () => {
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   const [computeMode, setComputeMode] = useState<'low' | 'medium' | 'high'>('medium');
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
 
   const handleStartChat = (prompt: string, mode: 'low' | 'medium' | 'high') => {
     setInitialPrompt(prompt);
     setComputeMode(mode);
+    setSelectedSessionId(null);
+  };
+
+  const handleSelectChat = (sessionId: number) => {
+    setSelectedSessionId(sessionId);
+    setInitialPrompt(null);
+  };
+
+  // New handler for "New chat" button
+  const handleNewChat = () => {
+    setInitialPrompt(null);
+    setSelectedSessionId(null);
   };
 
   return (
-    <div className="app-container">
-      {!initialPrompt ? (
-        <PromptScreen onStartChat={handleStartChat} />
-      ) : (
-        <ChatScreen
-          initialPrompt={initialPrompt}
-          computeMode={computeMode}
-        />
-      )}
+    <div style={{ display: 'flex', height: '100vh' }}>
+      <ChatList onSelectChat={handleSelectChat} onNewChat={handleNewChat} />
+      <div style={{ width: '85%', overflowY: 'auto' }}>
+        {selectedSessionId ? (
+          <OldChatScreen sessionId={selectedSessionId} />
+        ) : (
+          !initialPrompt ? (
+            <PromptScreen onStartChat={handleStartChat} />
+          ) : (
+            <ChatScreen initialPrompt={initialPrompt} computeMode={computeMode} />
+          )
+        )}
+      </div>
     </div>
   );
-}
+};
 
 export default App;
