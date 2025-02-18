@@ -6,6 +6,9 @@ from deep_research.report_writer import write_final_report
 from deep_research.follow_up import generate_follow_up
 import logging
 import traceback
+import asyncio
+import json
+from fastapi.responses import StreamingResponse
 
 app = FastAPI()
 
@@ -75,3 +78,66 @@ async def follow_up_endpoint(req: follow_upRequest):
     except Exception as e:
         logging.error("Error in /api/follow_up endpoint: %s", traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------
+# Streaming endpoints for progress updates
+# ---------------------------
+@app.post("/api/research_stream")
+async def perform_research_stream(req: ResearchRequest):
+    async def event_generator():
+        progress_queue = asyncio.Queue()
+
+        def progress_callback(update: dict):
+            progress_queue.put_nowait(update)
+
+        research_task = asyncio.create_task(deep_research(
+            query=req.query,
+            breadth=req.breadth,
+            depth=req.depth,
+            concurrency=req.concurrency,
+            progress_callback=progress_callback
+        ))
+        while not research_task.done():
+            try:
+                update = await asyncio.wait_for(progress_queue.get(), timeout=1)
+                yield f"data: {json.dumps({'type': 'progress', 'data': update})}\n\n"
+            except asyncio.TimeoutError:
+                continue
+        try:
+            research_results = await research_task
+            final_report = await write_final_report(
+                prompt=req.query,
+                learnings=research_results.get("learnings", []),
+                visited_urls=research_results.get("visited_urls", []),
+            )
+            final_response = {
+                "learnings": research_results.get("learnings", []),
+                "visited_urls": research_results.get("visited_urls", []),
+                "final_report": final_report
+            }
+            yield f"data: {json.dumps({'type': 'final', 'data': final_response})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/follow_up_stream")
+async def follow_up_stream(req: follow_upRequest):
+    async def event_generator():
+        # Simulate progress stages for follow-up generation.
+        progress_updates = [
+            {"stage": "clarify", "message": "Generating clarified query..."},
+            {"stage": "search", "message": "Fetching search results..."},
+            {"stage": "scrape", "message": "Scraping pages..."},
+            {"stage": "questions", "message": "Generating follow-up questions..."}
+        ]
+        for update in progress_updates:
+            yield f"data: {json.dumps({'type': 'progress', 'data': update})}\n\n"
+            await asyncio.sleep(1)
+        try:
+            questions = await generate_follow_up(req.query)
+            yield f"data: {json.dumps({'type': 'final', 'data': {'questions': questions}})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'data': str(e)})}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

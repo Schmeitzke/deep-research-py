@@ -11,11 +11,11 @@ class ClarifyResponse(BaseModel):
 class FollowUpResponse(BaseModel):
     questions: list[str]
 
-async def generate_follow_up(query: str) -> list[str]:
+async def generate_follow_up(query: str, progress_callback: callable = None) -> list[str]:
     api_client = ApiClient()
     
-    # Step 1: Clarify the research topic via LLM with improved prompt
-# Optimized prompt to clarify the research topic for SERP query generation
+    if progress_callback:
+        progress_callback({"stage": "clarify", "message": "Generating clarified query..."})
     clarify_prompt = (
         f"Given the research topic: '{query}', generate a single SERP search query that captures the core essence of the topic. "
         "This query should enhance understanding of the topic and serve as a basis for generating precise follow-up questions. "
@@ -42,16 +42,19 @@ async def generate_follow_up(query: str) -> list[str]:
         print(f"Error parsing clarified query: {e}")
         clarified_query = query  # fallback to original query
 
-    # Step 2: Retrieve search results using the Brave API with the clarified query
+    if progress_callback:
+        progress_callback({"stage": "search", "message": "Fetching search results..."})
     search_result = await api_client.brave_search(query=clarified_query, offset=0, count=3)
     new_urls = [item.get("url") for item in search_result.get("web", {}).get("results", []) if item.get("url")]
 
-    # Step 3: Scrape pages from the retrieved URLs
+    if progress_callback:
+        progress_callback({"stage": "scrape", "message": "Scraping pages..."})
     scrape_tasks = [scrape_and_extract(url) for url in new_urls]
     scraped_results = await asyncio.gather(*scrape_tasks)
     scraped_content = "\n".join(result.get("markdown", "") for result in scraped_results if result.get("markdown"))
 
-    # Step 4: Request follow-up questions using the user query and scraped info
+    if progress_callback:
+        progress_callback({"stage": "questions", "message": "Generating follow-up questions..."})
     follow_up_prompt = (
         f"Given the research topic: '{query}' and the following information retrieved from a refined SERP query:\n"
         f"{scraped_content}\n\n"

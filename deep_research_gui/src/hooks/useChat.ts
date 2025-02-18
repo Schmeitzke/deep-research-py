@@ -35,34 +35,63 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     // Display the user's initial prompt.
     setMessages([{ role: 'user', type: 'text', content: initialPrompt }]);
 
-    // Fetch follow-up questions from the /api/follow_up endpoint.
-    const getfollow_upQuestions = async () => {
+    // Use streaming endpoint to fetch follow-up questions.
+    const getFollowUpQuestions = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/follow_up`, {
+        const res = await fetch(`${API_URL}/api/follow_up_stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: initialPrompt }),
         });
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-        const data: { questions: string[] } = await res.json();
-        setQuestionQueue(data.questions);
-
-        if (data.questions.length > 0) {
-          setMessages((prev) => [
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let questions: string[] = [];
+        while (true) {
+          const { done, value } = await reader!.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+          for (let line of lines) {
+            if (line.startsWith("data: ")) {
+              const jsonStr = line.replace("data: ", "");
+              const eventData = JSON.parse(jsonStr);
+              if (eventData.type === 'progress') {
+                // Append a progress update message for follow-up generation.
+                setMessages(prev => [
+                  ...prev,
+                  { role: 'system', type: 'update', content: `${eventData.data.stage}: ${eventData.data.message}` }
+                ]);
+              } else if (eventData.type === 'final') {
+                questions = eventData.data.questions;
+              } else if (eventData.type === 'error') {
+                setMessages(prev => [
+                  ...prev,
+                  { role: 'system', type: 'update', content: `Error: ${eventData.data}` }
+                ]);
+              }
+            }
+          }
+        }
+        setQuestionQueue(questions);
+        if (questions.length > 0) {
+          setMessages(prev => [
             ...prev,
-            { role: 'system', type: 'question', content: data.questions[0] },
+            { role: 'system', type: 'question', content: questions[0] },
           ]);
         }
       } catch (err) {
-        console.error('Failed to get follow_up questions:', err);
-        setMessages((prev) => [
+        console.error('Failed to get follow-up questions:', err);
+        setMessages(prev => [
           ...prev,
           { role: 'system', type: 'text', content: 'Error fetching follow-up questions.' },
         ]);
       }
     };
 
-    getfollow_upQuestions();
+    getFollowUpQuestions();
   }, [initialPrompt, API_URL]);
 
   // Map computeMode to research parameters.
@@ -78,7 +107,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Function to initiate the deep research process.
+  // Function to initiate the deep research process using streaming updates.
   const startDeepResearch = async () => {
     const combinedQuery = [
       `Initial Query: ${initialPrompt}`,
@@ -88,7 +117,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     const { breadth, depth } = getBreadthDepth();
 
     try {
-      const response = await fetch(`${API_URL}/api/research`, {
+      const response = await fetch(`${API_URL}/api/research_stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,18 +128,51 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
         }),
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data: { learnings: string[]; visited_urls: string[]; final_report: string } = await response.json();
-
-      setMessages((prev) => [
-        ...prev,
-        { role: 'system', type: 'finalReport', content: data.final_report },
-        { role: 'system', type: 'update', content: 'Done' },
-      ]);
-      setFinalReport(data.final_report);
-      setIsComplete(true);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+        for (let line of lines) {
+          if (line.startsWith("data: ")) {
+            const jsonStr = line.replace("data: ", "");
+            const eventData = JSON.parse(jsonStr);
+            if (eventData.type === 'progress') {
+              // Append a progress update message.
+              setMessages(prev => [
+                ...prev,
+                { 
+                  role: 'system', 
+                  type: 'update', 
+                  content: `Progress: ${eventData.data.percentage}% | Elapsed: ${eventData.data.elapsed}s | Remaining: ${eventData.data.remaining}s` 
+                }
+              ]);
+            } else if (eventData.type === 'final') {
+              setMessages(prev => [
+                ...prev,
+                { role: 'system', type: 'finalReport', content: eventData.data.final_report },
+                { role: 'system', type: 'update', content: 'Done' },
+              ]);
+              setFinalReport(eventData.data.final_report);
+              setIsComplete(true);
+            } else if (eventData.type === 'error') {
+              setMessages(prev => [
+                ...prev,
+                { role: 'system', type: 'finalReport', content: `Error: ${eventData.data}` },
+              ]);
+              setFinalReport(`Error: ${eventData.data}`);
+              setIsComplete(true);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Error fetching research results:', error);
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
         { role: 'system', type: 'finalReport', content: 'Error fetching research results.' },
       ]);
@@ -122,33 +184,30 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
   // Convert sendUserMessage into an async function.
   const sendUserMessage = async (message: string) => {
     // Append the user's message.
-    setMessages((prev) => [
+    setMessages(prev => [
       ...prev,
       { role: 'user', type: 'text', content: message },
     ]);
-    setAnswers((prev) => [...prev, message]);
+    setAnswers(prev => [...prev, message]);
 
     const nextIndex = currentQuestionIndex + 1;
 
     if (questionQueue[nextIndex]) {
       // Display the next follow-up question.
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
         { role: 'system', type: 'question', content: questionQueue[nextIndex] },
       ]);
     } else if (!researchStartedRef.current) {
-      // Mark research as started.
       researchStartedRef.current = true;
-      // Force the update of the "Doing research..." message synchronously.
+      // Synchronously update with an initial "Doing research..." message.
       flushSync(() => {
-        setMessages((prev) => [
+        setMessages(prev => [
           ...prev,
           { role: 'system', type: 'update', content: 'Doing research...' },
         ]);
       });
-      // Yield to the event loop so that the update is rendered.
-      await Promise.resolve();
-      // Start the research process.
+      // Start the research process with progress streaming.
       startDeepResearch();
     }
     setCurrentQuestionIndex(nextIndex);
