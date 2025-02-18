@@ -129,7 +129,7 @@ async def follow_up_stream(req: follow_upRequest):
         progress_updates = [
             {"stage": "clarify", "message": "Generating clarified query..."},
             {"stage": "search", "message": "Fetching search results..."},
-            {"stage": "scrape", "message": "Scraping pages..."},
+            {"stage": "scrape", "message": "Retrieving pages..."},
             {"stage": "questions", "message": "Generating follow-up questions..."}
         ]
         for update in progress_updates:

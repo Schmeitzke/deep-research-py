@@ -28,6 +28,20 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
   const hasFetchedRef = useRef(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
+  // Helper: update or add an "update" message.
+  const updateProgressMessage = (newContent: string) => {
+    setMessages(prev => {
+      const index = prev.findIndex(m => m.type === 'update');
+      if (index !== -1) {
+        const updated = [...prev];
+        updated[index] = { ...updated[index], content: newContent };
+        return updated;
+      } else {
+        return [...prev, { role: 'system', type: 'update', content: newContent }];
+      }
+    });
+  };
+
   useEffect(() => {
     if (!initialPrompt || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
@@ -59,18 +73,14 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
               const jsonStr = line.replace("data: ", "");
               const eventData = JSON.parse(jsonStr);
               if (eventData.type === 'progress') {
-                // Append a progress update message for follow-up generation.
-                setMessages(prev => [
-                  ...prev,
-                  { role: 'system', type: 'update', content: `${eventData.data.stage}: ${eventData.data.message}` }
-                ]);
+                const content = `${eventData.data.stage}: ${eventData.data.message}`;
+                updateProgressMessage(content);
               } else if (eventData.type === 'final') {
                 questions = eventData.data.questions;
+                // Remove the progress message.
+                setMessages(prev => prev.filter(m => m.type !== 'update'));
               } else if (eventData.type === 'error') {
-                setMessages(prev => [
-                  ...prev,
-                  { role: 'system', type: 'update', content: `Error: ${eventData.data}` }
-                ]);
+                updateProgressMessage(`Error: ${eventData.data}`);
               }
             }
           }
@@ -142,31 +152,18 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
             const jsonStr = line.replace("data: ", "");
             const eventData = JSON.parse(jsonStr);
             if (eventData.type === 'progress') {
-              // Append a progress update message.
-              setMessages(prev => [
-                ...prev,
-                { 
-                  role: 'system', 
-                  type: 'update', 
-                  content: `Progress: ${eventData.data.percentage}% | Elapsed: ${eventData.data.elapsed}s | Remaining: ${eventData.data.remaining}s` 
-                }
-              ]);
+              const content = `Progress: ${eventData.data.percentage}% | Elapsed: ${eventData.data.elapsed}s | Remaining: ${eventData.data.remaining}s`;
+              updateProgressMessage(content);
             } else if (eventData.type === 'final') {
+              setMessages(prev => prev.filter(m => m.type !== 'update'));
               setMessages(prev => [
                 ...prev,
                 { role: 'system', type: 'finalReport', content: eventData.data.final_report },
-                { role: 'system', type: 'update', content: 'Done' },
+                { role: 'system', type: 'text', content: 'Done' },
               ]);
               setFinalReport(eventData.data.final_report);
               setIsComplete(true);
-            } else if (eventData.type === 'error') {
-              setMessages(prev => [
-                ...prev,
-                { role: 'system', type: 'finalReport', content: `Error: ${eventData.data}` },
-              ]);
-              setFinalReport(`Error: ${eventData.data}`);
-              setIsComplete(true);
-            }
+            }            
           }
         }
       }
@@ -200,7 +197,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
       ]);
     } else if (!researchStartedRef.current) {
       researchStartedRef.current = true;
-      // Synchronously update with an initial "Doing research..." message.
+      // Synchronously update with an initial "Doing research..." progress message.
       flushSync(() => {
         setMessages(prev => [
           ...prev,

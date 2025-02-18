@@ -16,7 +16,6 @@ class ReportStage3Response(BaseModel):
     references: str
 
 async def write_final_report(prompt: str, learnings: List[str], visited_urls: List[str]) -> str:
-    print("!!!!!!!!!!!!!!!!!!!", learnings)
     # Format the research learnings by wrapping each in XML-like tags.
     learnings_array = [f"<learning>\n{learning}\n</learning>" for learning in learnings]
     learnings_string = "\n".join(learnings_array)

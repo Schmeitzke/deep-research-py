@@ -48,7 +48,7 @@ async def generate_follow_up(query: str, progress_callback: callable = None) -> 
     new_urls = [item.get("url") for item in search_result.get("web", {}).get("results", []) if item.get("url")]
 
     if progress_callback:
-        progress_callback({"stage": "scrape", "message": "Scraping pages..."})
+        progress_callback({"stage": "scrape", "message": "Retrieving pages..."})
     scrape_tasks = [scrape_and_extract(url) for url in new_urls]
     scraped_results = await asyncio.gather(*scrape_tasks)
     scraped_content = "\n".join(result.get("markdown", "") for result in scraped_results if result.get("markdown"))

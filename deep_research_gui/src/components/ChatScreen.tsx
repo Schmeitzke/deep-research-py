@@ -38,7 +38,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
             );
           }
           return (
-            <ChatMessage key={index} content={msg.content} role={msg.role} />
+            <ChatMessage key={index} content={msg.content} role={msg.role} type={msg.type} />
           );
         })}
       </div>
