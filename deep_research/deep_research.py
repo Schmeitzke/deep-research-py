@@ -74,7 +74,6 @@ async def deep_research(
                     search_result=search_result,
                     num_follow_up_questions=new_breadth
                 )
-                print("Learnings:", new_learnings)
 
                 all_learnings = learnings + new_learnings["learnings"]
                 all_urls = visited_urls + new_urls

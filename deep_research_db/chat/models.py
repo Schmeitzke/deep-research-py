@@ -11,7 +11,7 @@ class ChatSession(models.Model):
         related_name="chat_sessions"
     )
     title = models.CharField(
-        max_length=255,
+        max_length=500,
         blank=True,
         null=True,
         help_text="Optional title or summary of the session."

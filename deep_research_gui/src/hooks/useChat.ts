@@ -1,6 +1,7 @@
 // src/hooks/useChat.ts
 import { useEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { saveChatSession } from '../api/saveChat';
 
 export interface ChatMessageData {
   role: 'user' | 'system';
@@ -22,13 +23,16 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
   const [answers, setAnswers] = useState<string[]>([]);
   const [isComplete, setIsComplete] = useState<boolean>(false);
   const [finalReport, setFinalReport] = useState<string | null>(null);
+  
+  // New state to ensure the chat is saved only once.
+  const [isSaved, setIsSaved] = useState<boolean>(false);
 
-  // A ref to ensure research starts only once.
+  // Refs to ensure certain actions happen only once.
   const researchStartedRef = useRef(false);
   const hasFetchedRef = useRef(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
-  // Helper: update or add an "update" message.
+  // Helper: update or add a progress message.
   const updateProgressMessage = (newContent: string) => {
     setMessages(prev => {
       const index = prev.findIndex(m => m.type === 'update');
@@ -42,6 +46,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     });
   };
 
+  // Fetch follow-up questions via streaming.
   useEffect(() => {
     if (!initialPrompt || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
@@ -49,7 +54,6 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     // Display the user's initial prompt.
     setMessages([{ role: 'user', type: 'text', content: initialPrompt }]);
 
-    // Use streaming endpoint to fetch follow-up questions.
     const getFollowUpQuestions = async () => {
       try {
         const res = await fetch(`${API_URL}/api/follow_up_stream`, {
@@ -104,7 +108,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     getFollowUpQuestions();
   }, [initialPrompt, API_URL]);
 
-  // Map computeMode to research parameters.
+  // Map compute mode to research parameters.
   const getBreadthDepth = () => {
     switch (computeMode) {
       case 'low':
@@ -117,7 +121,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Function to initiate the deep research process using streaming updates.
+  // Initiate the deep research process using streaming updates.
   const startDeepResearch = async () => {
     const combinedQuery = [
       `Initial Query: ${initialPrompt}`,
@@ -178,7 +182,7 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
     }
   };
 
-  // Convert sendUserMessage into an async function.
+  // Send user messages and manage the chat flow.
   const sendUserMessage = async (message: string) => {
     // Append the user's message.
     setMessages(prev => [
@@ -204,11 +208,30 @@ export function useChat(initialPrompt: string, computeMode: 'low' | 'medium' | '
           { role: 'system', type: 'update', content: 'Doing research...' },
         ]);
       });
-      // Start the research process with progress streaming.
+      // Start the research process with streaming progress.
       startDeepResearch();
     }
     setCurrentQuestionIndex(nextIndex);
   };
+
+  // Automatically save the chat session when research is complete.
+  useEffect(() => {
+    if (isComplete && !isSaved) {
+      const sessionData = {
+        // Use the initial prompt (trimmed) as part of the session title.
+        title: `Chat on: ${initialPrompt.slice(0, 50)}`,
+        messages: messages.map(m => ({ role: m.role, content: m.content }))
+      };
+      saveChatSession(sessionData)
+        .then(data => {
+          console.log("Chat saved successfully:", data);
+          setIsSaved(true);
+        })
+        .catch(error => {
+          console.error("Error saving chat session:", error);
+        });
+    }
+  }, [isComplete, isSaved, messages, initialPrompt]);
 
   return {
     messages,
