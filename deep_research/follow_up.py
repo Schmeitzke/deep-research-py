@@ -55,10 +55,11 @@ async def generate_follow_up(query: str) -> list[str]:
     follow_up_prompt = (
         f"Given the research topic: '{query}' and the following information retrieved from a refined SERP query:\n"
         f"{scraped_content}\n\n"
-        "Generate 3-5 follow-up questions to better understand and refine the user's research needs. "
-        "Focus on the research topic and only use the SERP information to understand the topic the user is interested in. "
-        "Do not focus on the SERP content itself, such as recent news or events, just use it to better understand topics and definitions. "
-        "Return a JSON object with the field 'questions'."
+        "Generate 3-5 follow-up questions designed to help the user further refine and clarify their research intent. "
+        "The questions should be open-ended and encourage the user to provide additional context, preferences, or specific aspects of the topic they are interested in. "
+        "Avoid framing the questions in a way that tests the user or assumes detailed prior knowledge of the subject matter. "
+        "Focus solely on clarifying the user's research needs rather than the content of the SERP results. "
+        "Return your output strictly as a JSON object with the key 'questions'."
     )
     follow_response = await api_client.llm_complete(
         system_instruction=system_prompt(),
