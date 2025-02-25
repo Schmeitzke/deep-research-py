@@ -1,5 +1,6 @@
 // src/components/ChatList.tsx
 import React, { useState, useEffect } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 
 interface ChatSessionItem {
   id: number;
@@ -20,6 +21,7 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, onNewChat }) => {
 
   const fetchSessions = async (search: string = '') => {
     try {
+      setLoading(true);
       const response = await fetch(`${API_URL}/api/chat/list/?search=${encodeURIComponent(search)}`);
       const data = await response.json();
       setSessions(data.sessions);
@@ -40,72 +42,75 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, onNewChat }) => {
     fetchSessions(term);
   };
 
+  // Format date to a more readable format
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    
+    // If today, show only time
+    if (date.toDateString() === today.toDateString()) {
+      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // If this year, show month and day
+    if (date.getFullYear() === today.getFullYear()) {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    
+    // Otherwise show full date
+    return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
   return (
-    <>
-      <style>{`
-        .chat-button, .chat-input {
-          display: block;
-          width: 90%;
-          margin: 10px auto;
-          border-radius: 4px;
-          transition: transform 0.2s ease, background-color 0.2s ease;
-          font-size: 1rem;
-        }
-        .chat-button {
-          padding: 8px;
-          background-color:rgb(94, 94, 94);
-          border: none;
-          cursor: pointer;
-          color: black;
-        }
-        .chat-button:hover {
-          transform: scale(1.05);
-          background-color:rgb(108, 108, 108);
-        }
-        .chat-input {
-          padding: 5px;
-          border: 1px solid #ccc;
-          background-color: #d3d3d3;
-          color: black;
-        }
-        .chat-input:focus {
-          outline: none;
-          border-color: #aaa;
-        }
-      `}</style>
-      <div style={{ width: '15%', borderRight: '1px solid #444', padding: '10px', boxSizing: 'border-box', height: '100vh', overflowY: 'auto', backgroundColor: '#222', color: 'white' }}>
-        <button
-          onClick={onNewChat}
-          className="chat-button"
-        >
-          New chat
-        </button>
+    <div className="chat-sidebar">
+      <div className="sidebar-header">
+        <h2 className="sidebar-title">Deep Research</h2>
+      </div>
+
+      <button 
+        onClick={onNewChat}
+        className="new-chat-button"
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 3.33337V12.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M3.33337 8H12.6667" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+        New Chat
+      </button>
+
+      <div className="chat-search">
         <input 
           type="text" 
           placeholder="Search conversations..." 
           value={searchTerm}
           onChange={handleSearchChange}
-          className="chat-input"
         />
-        {loading ? (
-          <div>Loading...</div>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {sessions.map(session => (
-              <li key={session.id} style={{ marginBottom: '10px' }}>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <LoadingSpinner message="Loading conversations..." />
+        </div>
+      ) : (
+        <ul className="chat-list">
+          {sessions.length === 0 ? (
+            <li className="empty-state">No conversations found</li>
+          ) : (
+            sessions.map(session => (
+              <li key={session.id} className="chat-list-item">
                 <div 
-                  style={{ backgroundColor: '#444', padding: '10px', borderRadius: '5px', cursor: 'pointer', color: 'white' }}
+                  className="chat-list-item-content"
                   onClick={() => onSelectChat(session.id)}
                 >
-                  <div style={{ fontWeight: 'bold' }}>{session.title || "Untitled conversation"}</div>
-                  {/* Removed created_at display */}
+                  <div className="chat-list-item-title">{session.title || "Untitled conversation"}</div>
+                  <div className="chat-list-item-date">{formatDate(session.created_at)}</div>
                 </div>
               </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
   );
 };
 

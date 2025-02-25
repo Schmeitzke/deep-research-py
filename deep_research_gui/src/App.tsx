@@ -28,9 +28,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div className="app-container">
       <ChatList onSelectChat={handleSelectChat} onNewChat={handleNewChat} />
-      <div style={{ width: '85%', overflowY: 'auto' }}>
+      <main className="app-main">
         {selectedSessionId ? (
           <OldChatScreen sessionId={selectedSessionId} />
         ) : (
@@ -40,7 +40,7 @@ const App: React.FC = () => {
             <ChatScreen initialPrompt={initialPrompt} computeMode={computeMode} />
           )
         )}
-      </div>
+      </main>
     </div>
   );
 };

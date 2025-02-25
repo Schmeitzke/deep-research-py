@@ -1,155 +1,252 @@
-/* Fullscreen container with centered content */
+/* Main container */
 .prompt-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background-color: #121212;
-  margin: 0;
+  background-color: #1e293b;
+  padding: 0 20px;
 }
 
+/* Header styling */
 .prompt-header {
+  text-align: center;
   margin-bottom: 2rem;
+  animation: fadeDown 0.8s ease;
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .prompt-title {
-  font-size: 2rem;
-  margin-top: 0;
+  font-size: 2.2rem;
+  color: #f8fafc;
+  font-weight: 700;
   margin-bottom: 1rem;
-  color: #f1f1f1;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
 }
 
-/* Container for the form, centered horizontally */
+.prompt-subtitle {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  font-weight: 400;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Form container */
 .prompt-form-container {
   width: 100%;
-  display: flex;
-  justify-content: center;
+  max-width: 800px;
+  animation: fadeUp 0.8s ease;
 }
 
-/* The main form is 60% wide: text box on the left, arrow button on the right */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Main form styling */
 .prompt-form {
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  width: 60%;
-  gap: 1rem; /* small gap between text box and arrow button */
+  gap: 16px;
+  width: 100%;
 }
 
-/* The container for the compute button + text area in one “box.” */
+/* Input container with textarea and research options */
 .prompt-input-container {
-  flex: 1; /* take up all available space to the left of the arrow button */
-  display: flex;
-  flex-direction: row;
-  align-items: center;      /* center button vertically */
-  background-color: #2a2a2a;
-  border-radius: 24px;
-  padding: 1rem;
-  position: relative;       /* in case you want the dropdown absolutely positioned */
-}
-
-/* The compute button sits on the left, the dropdown is absolutely positioned under it */
-.compute-section {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-right: 1rem; /* small gap between the button and text area */
-}
-
-.compute-button {
-  background-color: #2b81f6;
-  border: none;
-  color: #fff;
-  padding: 0.6rem 1rem;
-  border-radius: 24px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-/* Add hover effect for compute-button */
-.compute-button:hover {
-  transform: scale(1.1);
-}
-
-.compute-dropdown {
-  position: absolute;
-  top: 110%;  /* show below the button */
-  left: 0;
-  background-color: #333;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  z-index: 999;
-}
-
-.compute-dropdown button {
-  background: none;
-  border: none;
-  color: #fff;
-  padding: 0.4rem 0.8rem;
-  text-align: left;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.compute-dropdown button:hover {
-  background-color: #444;
-}
-
-/* The text area on the right, taking the rest of the container */
-.prompt-input {
   flex: 1;
-  max-height: 6em; /* ~3 lines of text before scrolling */
-  overflow-y: auto;
-  resize: none;
+  position: relative;
+  background-color: #0f172a;
+  border-radius: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.prompt-input-container:focus-within {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* Textarea styling */
+.prompt-input {
+  width: 100%;
   border: none;
-  border-radius: 8px;
-  background-color: #2a2a2a;
-  color: #f1f1f1;
-  font-size: 1.2rem;
+  background-color: transparent;
+  color: #f8fafc;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  padding: 20px;
+  resize: none;
+  min-height: 120px;
+  font-family: inherit;
+}
+
+.prompt-input:focus {
   outline: none;
 }
 
-/* Modern small scrollbar styling for the text area */
-.prompt-input::-webkit-scrollbar {
-  width: 8px;
-}
-.prompt-input::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-.prompt-input::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-}
-.prompt-input::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+.prompt-input::placeholder {
+  color: #64748b;
 }
 
-/* The arrow (submit) button remains on the right side of the form */
+/* Research options bar */
+.compute-section {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid #334155;
+  background-color: rgba(15, 23, 42, 0.6);
+  position: relative;
+}
+
+/* Research button toggle */
+.compute-button {
+  background-color: transparent;
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+  font-size: 0.9rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.compute-button:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+  transform: translateY(-1px);
+}
+
+.compute-button:after {
+  content: "↓";
+  font-size: 0.8rem;
+}
+
+/* Dropdown styling */
+.compute-dropdown {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 20px;
+  background-color: #1e293b;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 220px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.compute-dropdown button {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #f8fafc;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #334155;
+  transition: background-color 0.2s;
+}
+
+.compute-dropdown button:last-child {
+  border-bottom: none;
+}
+
+.compute-dropdown button:hover {
+  background-color: #334155;
+}
+
+.compute-dropdown button:after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.compute-dropdown button[data-mode="low"]:after {
+  background-color: #10b981; /* green for low */
+}
+
+.compute-dropdown button[data-mode="medium"]:after {
+  background-color: #f59e0b; /* amber for medium */
+}
+
+.compute-dropdown button[data-mode="high"]:after {
+  background-color: #ef4444; /* red for high */
+}
+
+/* Submit button styling */
 .prompt-submit-btn {
-  width: 5rem;
-  height: 5rem;
+  width: 60px;
+  height: 60px;
   border: none;
   border-radius: 50%;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  transition: transform 0.2s ease;
+  background-color: #3b82f6;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  align-self: flex-end;
+  margin-bottom: 4px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .prompt-submit-btn:hover {
+  background-color: #2563eb;
   transform: scale(1.1);
 }
 
-.prompt-submit-btn:hover circle {
-  fill: #4690f7;
+.prompt-submit-btn svg {
+  width: 24px;
+  height: 24px;
+  transform: rotate(-90deg);
+}
+
+/* Additional help section */
+.prompt-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.prompt-help-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  opacity: 0.8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .prompt-form {
+    flex-direction: column;
+  }
+  
+  .prompt-submit-btn {
+    align-self: center;
+    margin-top: 16px;
+  }
+  
+  .prompt-title {
+    font-size: 1.8rem;
+  }
 }

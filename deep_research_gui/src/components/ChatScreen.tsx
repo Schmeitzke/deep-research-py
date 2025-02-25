@@ -1,5 +1,5 @@
 // src/components/ChatScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useChat, ChatMessageData } from '../hooks/useChat';
 import ChatMessage from './ChatMessage';
 import MarkdownMessage from './MarkdownMessage';
@@ -18,6 +18,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
   } = useChat(initialPrompt, computeMode);
 
   const [userInput, setUserInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Auto-resize the textarea based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '24px';
+      const scrollHeight = textareaRef.current.scrollHeight;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, 120)}px`;
+    }
+  }, [userInput]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +41,10 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
     if (trimmed.length > 0) {
       sendUserMessage(trimmed);
       setUserInput('');
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '24px';
+      }
     }
   };
 
@@ -41,13 +61,14 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
             <ChatMessage key={index} content={msg.content} role={msg.role} type={msg.type} />
           );
         })}
+        <div ref={messagesEndRef} />
       </div>
       <form onSubmit={handleSend} className="chat-input">
         <textarea
-          placeholder={isComplete ? "Research complete" : "Type your answer here..."}
+          ref={textareaRef}
+          placeholder={isComplete ? "Research complete" : "Type your message..."}
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
-          rows={2}
           disabled={isComplete}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -56,7 +77,11 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ initialPrompt, computeMode }) =
             }
           }}
         />
-        <button type="submit" disabled={isComplete}>Send</button>
+        <button type="submit" disabled={isComplete || !userInput.trim()}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 8L1 15L3.5 8L1 1L15 8Z" stroke="currentColor" fill="currentColor" />
+          </svg>
+        </button>
       </form>
     </div>
   );

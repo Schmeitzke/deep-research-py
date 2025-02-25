@@ -2,9 +2,18 @@
 import React from 'react';
 import '../styles/LoadingSpinner.css';
 
-const LoadingSpinner: React.FC = () => {
+interface LoadingSpinnerProps {
+  message?: string;
+}
+
+const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ message }) => {
   return (
-    <div className="loading-spinner" />
+    <div className="loading-container">
+      <div className="loading-spinner">
+        <span></span>
+      </div>
+      {message && <span className="loading-message">{message}</span>}
+    </div>
   );
 };
 
